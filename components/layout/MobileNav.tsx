@@ -135,7 +135,7 @@ export function MobileNav({ profile }: MobileNavProps) {
                 className={getLinkClass(pathname.startsWith("/my-dogs"))}
               >
                 <FileText className="h-4 w-4" />
-                My Listed Dogs
+                My Dogs
               </Link>
 
               <Link

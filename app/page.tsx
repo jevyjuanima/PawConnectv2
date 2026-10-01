@@ -1,12 +1,12 @@
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   PawPrint,
   Heart,
   PlusCircle,
   ShieldCheck,
   Search,
-  FileCheck,
   Home as HomeIcon,
   ArrowRight,
   Dog,
@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   ClipboardList,
   Handshake,
+  MapPin,
+  FileText,
 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +23,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { DogCard } from "@/components/dogs/DogCard";
 import { getAvailableDogsAction } from "@/app/actions/dogs";
+import { formatAge, formatCapitalize } from "@/lib/utils/format";
 import { cn } from "@/lib/utils";
 
 export const metadata = {
@@ -32,75 +35,213 @@ export const metadata = {
 export default async function HomePage() {
   const result = await getAvailableDogsAction({ limit: 6 });
   const dogs = result.success && result.data ? result.data.dogs : [];
+  const heroDog = dogs.length > 0 ? dogs[0] : null;
+
+  const heroDogImage = heroDog
+    ? heroDog.primary_image ||
+      heroDog.images?.find((img) => img.is_primary)?.public_url ||
+      heroDog.images?.[0]?.public_url
+    : null;
 
   return (
     <div className="flex flex-col">
       {/* ─────────────────────────────────────────── */}
       {/* 1. HERO SECTION                             */}
       {/* ─────────────────────────────────────────── */}
-      <section className="relative overflow-hidden border-b bg-gradient-to-b from-primary/[0.06] via-background to-background">
-        {/* Decorative paw dot grid */}
+      <section className="relative overflow-hidden border-b bg-gradient-to-b from-primary/[0.05] via-background to-background">
+        {/* Subtle decorative paw pattern overlay */}
         <div
           aria-hidden="true"
-          className="absolute inset-0 bg-paw-pattern opacity-60 pointer-events-none"
+          className="absolute inset-0 bg-paw-pattern opacity-40 pointer-events-none"
         />
 
-        <div className="relative container mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 md:py-28 text-center max-w-4xl">
-          {/* Eyebrow */}
-          <div className="inline-flex items-center gap-2 rounded-full border bg-background px-3.5 py-1.5 text-xs font-semibold text-primary shadow-xs mb-6">
-            <PawPrint className="h-3.5 w-3.5" />
-            <span>Ethical Adoption · Responsible Rehoming</span>
-          </div>
-
-          {/* Headline */}
-          <h1 className="text-4xl sm:text-5xl md:text-[3.5rem] font-extrabold tracking-tight text-foreground leading-[1.12] mb-5">
-            Every dog deserves a{" "}
-            <span className="text-primary">loving forever home.</span>
-          </h1>
-
-          {/* Sub-copy */}
-          <p className="mx-auto max-w-xl text-base sm:text-lg text-muted-foreground leading-relaxed mb-8">
-            PawConnect bridges compassionate adopters with responsible pet
-            parents. Every listing is personally reviewed by our team before it
-            goes live.
-          </p>
-
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-12">
-            <Link
-              href="/dogs"
-              className={cn(
-                buttonVariants({ size: "lg" }),
-                "w-full sm:w-auto gap-2 px-7 h-12 text-base font-semibold shadow-sm"
-              )}
-            >
-              <Search className="h-4 w-4" />
-              Browse Available Dogs
-            </Link>
-            <Link
-              href="/rehome"
-              className={cn(
-                buttonVariants({ variant: "outline", size: "lg" }),
-                "w-full sm:w-auto gap-2 px-7 h-12 text-base font-semibold"
-              )}
-            >
-              <PlusCircle className="h-4 w-4" />
-              Rehome a Dog
-            </Link>
-          </div>
-
-          {/* Trust Pills */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-6 text-xs text-muted-foreground">
-            {[
-              { icon: ShieldCheck, label: "100% Vetted Listings" },
-              { icon: Users, label: "Thorough Adopter Screening" },
-              { icon: Heart, label: "Zero Commercial Exploitation" },
-            ].map(({ icon: Icon, label }) => (
-              <div key={label} className="flex items-center gap-1.5">
-                <Icon className="h-4 w-4 text-primary" />
-                <span className="font-medium">{label}</span>
+        <div className="relative container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-20 lg:py-24">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+            {/* Left Column: Headlines & Actions */}
+            <div className="lg:col-span-7 flex flex-col items-start text-left">
+              {/* Eyebrow badge */}
+              <div className="inline-flex items-center gap-2 rounded-full border bg-background/80 px-3.5 py-1.5 text-xs font-semibold text-primary shadow-2xs backdrop-blur-xs mb-5">
+                <PawPrint className="h-3.5 w-3.5" />
+                <span>Ethical Pet Adoption &amp; Responsible Rehoming</span>
               </div>
-            ))}
+
+              {/* H1 Headline */}
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[3.25rem] font-extrabold tracking-tight text-foreground leading-[1.14] mb-5">
+                Connecting loving homes with{" "}
+                <span className="text-primary">dogs in need.</span>
+              </h1>
+
+              {/* Sub-copy */}
+              <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-xl mb-8">
+                PawConnect is a community-driven adoption platform where every
+                dog listing is personally verified by animal welfare staff.
+                Whether adopting or rehoming, we make every transition safe,
+                humane, and transparent.
+              </p>
+
+              {/* Primary & Secondary CTAs */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto mb-8">
+                <Link
+                  href="/dogs"
+                  className={cn(
+                    buttonVariants({ size: "lg" }),
+                    "gap-2 h-12 px-7 text-base font-semibold shadow-sm w-full sm:w-auto"
+                  )}
+                >
+                  <Search className="h-4 w-4" />
+                  Find a Pet
+                </Link>
+                <Link
+                  href="/rehome"
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "lg" }),
+                    "gap-2 h-12 px-7 text-base font-semibold w-full sm:w-auto"
+                  )}
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  Rehome a Pet
+                </Link>
+              </div>
+
+              {/* Trust Indicators */}
+              <div className="flex flex-wrap items-center gap-y-2.5 gap-x-6 text-xs text-muted-foreground font-medium pt-2 border-t w-full">
+                <div className="flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>100% Vetted Listings</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Users className="h-4 w-4 text-primary shrink-0" />
+                  <span>Screened Adopter Community</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Heart className="h-4 w-4 text-rose-500 shrink-0" />
+                  <span>Zero Commercial Breeding</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Pet Visual Treatment */}
+            <div className="lg:col-span-5 w-full">
+              {heroDog ? (
+                <div className="relative rounded-2xl border bg-card p-3 shadow-md hover:shadow-xl hover:border-primary/40 transition-all duration-300">
+                  {/* Photo container */}
+                  <div className="relative aspect-[4/3] w-full rounded-xl overflow-hidden bg-muted group">
+                    {heroDogImage ? (
+                      <Image
+                        src={heroDogImage}
+                        alt={heroDog.name}
+                        fill
+                        sizes="(max-width: 1024px) 100vw, 40vw"
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        priority
+                      />
+                    ) : (
+                      <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5 text-muted-foreground p-6 text-center">
+                        <Dog className="h-12 w-12 text-primary/40 mb-2" />
+                        <span className="text-xs font-medium">Verified listing profile</span>
+                      </div>
+                    )}
+
+                    {/* Status badge */}
+                    <div className="absolute top-3 left-3 z-10">
+                      <Badge className="bg-emerald-600 text-white font-semibold text-xs shadow-xs flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                        Available for Adoption
+                      </Badge>
+                    </div>
+
+                    {/* Location badge */}
+                    <div className="absolute top-3 right-3 z-10">
+                      <Badge
+                        variant="secondary"
+                        className="backdrop-blur-md bg-background/90 text-xs font-medium shadow-xs"
+                      >
+                        <MapPin className="h-3 w-3 mr-1 text-primary" />
+                        {heroDog.location}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Pet snapshot metadata */}
+                  <div className="pt-3.5 pb-1 px-1">
+                    <div className="flex items-baseline justify-between mb-1.5">
+                      <h3 className="text-xl font-bold tracking-tight text-foreground">
+                        {heroDog.name}
+                      </h3>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        {heroDog.breed}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 mb-3.5">
+                      <Badge variant="outline" className="text-[11px] font-medium">
+                        {formatAge(heroDog.age_years, heroDog.age_months)}
+                      </Badge>
+                      <Badge variant="outline" className="text-[11px] font-medium capitalize">
+                        {heroDog.gender}
+                      </Badge>
+                      <Badge variant="outline" className="text-[11px] font-medium capitalize">
+                        {formatCapitalize(heroDog.size)}
+                      </Badge>
+                    </div>
+
+                    <Link
+                      href={`/dogs/${heroDog.id}`}
+                      className={cn(
+                        buttonVariants({ size: "sm" }),
+                        "w-full gap-2 font-semibold shadow-2xs"
+                      )}
+                    >
+                      <span>Meet {heroDog.name}</span>
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+
+                    <p className="text-[11px] text-center text-muted-foreground mt-2">
+                      Verified health details · Guided adoption process
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                /* Fallback Hero Card if no dog is currently available */
+                <Card className="rounded-2xl border bg-card p-6 shadow-md text-left">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary mb-4">
+                    <Dog className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-bold text-foreground mb-2">
+                    Ethical Dog Adoption Network
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-4">
+                    Every dog listed through PawConnect receives individualized
+                    screening to ensure animal health, humane treatment, and
+                    secure family matching.
+                  </p>
+                  <div className="space-y-2 border-t pt-4 text-xs font-medium text-foreground">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span>Direct home-to-home transitions</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span>Zero shelter cages or commercial brokers</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      <span>Verified questionnaire review by staff</span>
+                    </div>
+                  </div>
+                  <Link
+                    href="/dogs"
+                    className={cn(
+                      buttonVariants({ variant: "outline", size: "sm" }),
+                      "w-full gap-2 mt-5 font-semibold"
+                    )}
+                  >
+                    <span>Explore Available Dogs</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                </Card>
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -110,18 +251,44 @@ export default async function HomePage() {
       {/* ─────────────────────────────────────────── */}
       <section className="border-b bg-muted/30">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="grid grid-cols-3 divide-x divide-border text-center">
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-border text-center">
             {[
-              { value: "100%", label: "Admin-Verified Listings" },
-              { value: "Free", label: "No Rehoming Fees" },
-              { value: "Safe", label: "Screened Adopters Only" },
-            ].map(({ value, label }) => (
-              <div key={label} className="px-4 py-2 space-y-0.5">
+              {
+                value: "100% Vetted",
+                label: "Admin-Verified Listings",
+                desc: "Every dog profile is inspected before approval",
+              },
+              {
+                value: "Zero Fees",
+                label: "Free Matching Platform",
+                desc: "No platform fees for rehoming or adopting",
+              },
+              {
+                value: "Screened Families",
+                label: "Adopter Questionnaire",
+                desc: "Housing, lifestyle, and pet history checked",
+              },
+              {
+                value: "Direct Handoff",
+                label: "Cage-Free Transitions",
+                desc: "Home-to-home safety without shelter stress",
+              },
+            ].map(({ value, label, desc }, idx) => (
+              <div
+                key={label}
+                className={cn(
+                  "px-4 py-3 space-y-0.5",
+                  idx > 1 ? "pt-4 md:pt-3" : ""
+                )}
+              >
                 <p className="text-xl sm:text-2xl font-extrabold tracking-tight text-primary">
                   {value}
                 </p>
-                <p className="text-[11px] sm:text-xs text-muted-foreground font-medium">
+                <p className="text-xs font-semibold text-foreground">
                   {label}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {desc}
                 </p>
               </div>
             ))}
@@ -142,10 +309,11 @@ export default async function HomePage() {
                 Available Now
               </Badge>
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-                Ready for a Lifelong Family
+                Dogs Ready for a Lifelong Family
               </h2>
               <p className="text-sm text-muted-foreground mt-1.5 max-w-md">
-                Recently verified dogs waiting for a caring, permanent home.
+                Browse recently verified dogs waiting for a caring, permanent
+                home.
               </p>
             </div>
 
@@ -156,7 +324,7 @@ export default async function HomePage() {
                 "gap-1.5 self-start sm:self-auto group text-primary font-semibold"
               )}
             >
-              View all dogs
+              Browse all dogs
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Link>
           </div>
@@ -168,7 +336,7 @@ export default async function HomePage() {
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-muted/20 p-14 text-center">
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed bg-muted/20 p-12 text-center">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary mb-4">
                 <Dog className="h-8 w-8" />
               </div>
@@ -176,8 +344,8 @@ export default async function HomePage() {
                 No Available Dogs Right Now
               </h3>
               <p className="text-sm text-muted-foreground max-w-sm mb-6">
-                All dogs listed have found homes or are under review. Check back
-                soon — or help a dog in need.
+                All dogs listed have found homes or are currently under review.
+                Check back soon or help a dog in need by submitting a rehoming listing.
               </p>
               <Link
                 href="/rehome"
@@ -192,12 +360,166 @@ export default async function HomePage() {
       </section>
 
       {/* ─────────────────────────────────────────── */}
-      {/* 4. HOW PAWCONNECT WORKS                     */}
+      {/* 4. ADOPTION & REHOMING BENEFITS             */}
       {/* ─────────────────────────────────────────── */}
-      <section
-        id="how-it-works"
-        className="bg-muted/30 border-y py-16 md:py-20"
-      >
+      <section className="bg-muted/30 border-y py-16 md:py-20">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-12">
+            <Badge
+              variant="outline"
+              className="mb-3 text-xs uppercase font-semibold tracking-wider"
+            >
+              Why PawConnect
+            </Badge>
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+              A Thoughtful Approach to Pet Care
+            </h2>
+            <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
+              We believe every pet transition should be conducted with
+              transparency, dignity, and personal care.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Benefit 1: Adopters */}
+            <Card className="rounded-2xl border bg-card p-6 shadow-2xs hover:shadow-md transition-shadow flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Heart className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-foreground">
+                    For Compassionate Adopters
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Adopt with complete transparency, safety, and confidence.
+                  </p>
+                </div>
+                <ul className="space-y-2.5 text-xs text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <span>Verified medical history &amp; vaccination records</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <span>Direct insight into habits, quirks, and home routines</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <span>Protected against puppy mills and commercial scams</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="pt-6 border-t mt-6">
+                <Link
+                  href="/dogs"
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "sm" }),
+                    "w-full justify-between text-primary font-semibold px-2"
+                  )}
+                >
+                  <span>Explore available dogs</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            </Card>
+
+            {/* Benefit 2: Rehoming Parents */}
+            <Card className="rounded-2xl border bg-card p-6 shadow-2xs hover:shadow-md transition-shadow flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <HomeIcon className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-foreground">
+                    For Responsible Dog Parents
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Protect your pet with a caring, dignified transition.
+                  </p>
+                </div>
+                <ul className="space-y-2.5 text-xs text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <span>Peaceful alternative to overcrowded municipal shelters</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <span>Complete control to review and select the adopter</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <span>No listing or rehoming fees charged to you</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="pt-6 border-t mt-6">
+                <Link
+                  href="/rehome"
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "sm" }),
+                    "w-full justify-between text-primary font-semibold px-2"
+                  )}
+                >
+                  <span>Learn about rehoming</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            </Card>
+
+            {/* Benefit 3: Dog Welfare */}
+            <Card className="rounded-2xl border bg-card p-6 shadow-2xs hover:shadow-md transition-shadow flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-foreground">
+                    For Animal Welfare &amp; Safety
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Centered entirely on the health and happiness of the animal.
+                  </p>
+                </div>
+                <ul className="space-y-2.5 text-xs text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <span>Direct home-to-home handoff reduces separation trauma</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <span>Thorough screening eliminates impulsive adoptions</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <span>Administrative audit trail for verified accountability</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="pt-6 border-t mt-6">
+                <Link
+                  href="/#safety"
+                  className={cn(
+                    buttonVariants({ variant: "ghost", size: "sm" }),
+                    "w-full justify-between text-primary font-semibold px-2"
+                  )}
+                >
+                  <span>Read our safety standards</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* ─────────────────────────────────────────── */}
+      {/* 5. HOW PAWCONNECT WORKS                     */}
+      {/* ─────────────────────────────────────────── */}
+      <section id="how-it-works" className="py-16 md:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           {/* Section header */}
           <div className="text-center max-w-2xl mx-auto mb-12">
@@ -205,14 +527,14 @@ export default async function HomePage() {
               variant="outline"
               className="mb-3 text-xs uppercase font-semibold tracking-wider"
             >
-              Transparent Process
+              Simple &amp; Guided
             </Badge>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
               How PawConnect Works
             </h2>
             <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
-              Whether you are welcoming a new companion or responsibly rehoming
-              a dog you love, we guide every step.
+              Step-by-step guidance whether you are welcoming a new pet or
+              finding a loving new home for yours.
             </p>
           </div>
 
@@ -238,31 +560,28 @@ export default async function HomePage() {
                   {[
                     {
                       icon: Search,
-                      title: "Find Your Match",
+                      title: "1. Find Your Match",
                       desc: "Filter by breed, size, age, and location to discover dogs that suit your home and lifestyle.",
                     },
                     {
                       icon: ClipboardList,
-                      title: "Submit Questionnaire",
-                      desc: "Complete a detailed form covering your home environment, household, and experience with dogs.",
+                      title: "2. Submit Questionnaire",
+                      desc: "Complete a structured application covering your home environment, yard, and experience.",
                     },
                     {
                       icon: Handshake,
-                      title: "Verified Handoff",
-                      desc: "Admins review your application and facilitate a safe, confirmed pet transfer.",
+                      title: "3. Verified Handoff",
+                      desc: "Staff approve the match and facilitate a safe, documented, and loving transition.",
                     },
-                  ].map(({ icon: Icon, title, desc }, i) => (
-                    <li key={title} className="flex items-start gap-4">
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold mt-0.5">
-                        {i + 1}
-                      </span>
+                  ].map(({ icon: Icon, title, desc }) => (
+                    <li key={title} className="flex items-start gap-3.5">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary mt-0.5">
+                        <Icon className="h-4 w-4" />
+                      </div>
                       <div>
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <Icon className="h-3.5 w-3.5 text-primary" />
-                          <h4 className="text-sm font-semibold text-foreground">
-                            {title}
-                          </h4>
-                        </div>
+                        <h4 className="text-sm font-semibold text-foreground mb-0.5">
+                          {title}
+                        </h4>
                         <p className="text-xs text-muted-foreground leading-relaxed">
                           {desc}
                         </p>
@@ -275,11 +594,11 @@ export default async function HomePage() {
                   href="/dogs"
                   className={cn(
                     buttonVariants({ variant: "outline" }),
-                    "w-full gap-2"
+                    "w-full gap-2 font-semibold"
                   )}
                 >
                   <Search className="h-4 w-4" />
-                  Browse Available Dogs
+                  Find a Pet
                 </Link>
               </CardContent>
             </Card>
@@ -305,31 +624,28 @@ export default async function HomePage() {
                   {[
                     {
                       icon: Dog,
-                      title: "Create Dog Profile",
-                      desc: "Share personality details, vaccination records, and clear photos so adopters understand your dog.",
+                      title: "1. Create Dog Profile",
+                      desc: "Share personality details, health records, and clear photos so adopters understand your dog.",
                     },
                     {
                       icon: ShieldCheck,
-                      title: "Administrative Review",
-                      desc: "PawConnect staff inspect each submission for health transparency and animal welfare standards.",
+                      title: "2. Administrative Review",
+                      desc: "PawConnect moderators inspect every submission for animal welfare and medical transparency.",
                     },
                     {
                       icon: CheckCircle2,
-                      title: "Select Verified Adopter",
-                      desc: "Review vetted applications and choose the loving forever family that best fits your pet.",
+                      title: "3. Choose Verified Adopter",
+                      desc: "Review vetted applications and choose the loving forever family that best fits your dog.",
                     },
-                  ].map(({ icon: Icon, title, desc }, i) => (
-                    <li key={title} className="flex items-start gap-4">
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold mt-0.5">
-                        {i + 1}
-                      </span>
+                  ].map(({ icon: Icon, title, desc }) => (
+                    <li key={title} className="flex items-start gap-3.5">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary mt-0.5">
+                        <Icon className="h-4 w-4" />
+                      </div>
                       <div>
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          <Icon className="h-3.5 w-3.5 text-primary" />
-                          <h4 className="text-sm font-semibold text-foreground">
-                            {title}
-                          </h4>
-                        </div>
+                        <h4 className="text-sm font-semibold text-foreground mb-0.5">
+                          {title}
+                        </h4>
                         <p className="text-xs text-muted-foreground leading-relaxed">
                           {desc}
                         </p>
@@ -342,11 +658,11 @@ export default async function HomePage() {
                   href="/rehome"
                   className={cn(
                     buttonVariants({ variant: "outline" }),
-                    "w-full gap-2"
+                    "w-full gap-2 font-semibold"
                   )}
                 >
                   <PlusCircle className="h-4 w-4" />
-                  Start Rehoming Form
+                  Rehome a Pet
                 </Link>
               </CardContent>
             </Card>
@@ -355,47 +671,47 @@ export default async function HomePage() {
       </section>
 
       {/* ─────────────────────────────────────────── */}
-      {/* 5. TRUST & SAFETY                           */}
+      {/* 6. TRUST & SAFETY STANDARDS                 */}
       {/* ─────────────────────────────────────────── */}
-      <section id="safety" className="py-16 md:py-20">
+      <section id="safety" className="border-t bg-muted/30 py-16 md:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-12">
             <Badge
               variant="outline"
               className="mb-3 text-xs uppercase font-semibold tracking-wider"
             >
-              Our Standard
+              Our Welfare Standard
             </Badge>
             <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
               Built on Safety &amp; Animal Welfare
             </h2>
             <p className="text-muted-foreground text-sm mt-2 leading-relaxed">
-              We hold ourselves to strict principles to protect every animal
-              from exploitation, mistreatment, and fraud.
+              We hold our platform to strict guidelines to protect animals from
+              exploitation, mistreatment, and commercial breeding.
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {[
               {
-                icon: FileCheck,
+                icon: FileText,
                 title: "Strict Adopter Screening",
-                desc: "Every applicant completes a thorough questionnaire covering housing, yard security, household members, and prior pet experience.",
+                desc: "Every applicant completes an in-depth questionnaire covering home environment, yard enclosure, other household pets, and past dog care experience.",
               },
               {
                 icon: ShieldCheck,
-                title: "No Commercial Breeding",
-                desc: "PawConnect explicitly prohibits puppy mills, commercial sales, and breeding advertisements. Our platform is rescue and ethical rehoming only.",
+                title: "Zero Commercial Breeding",
+                desc: "PawConnect strictly bans puppy mills, commercial sales, and breeding advertisements. Our mission is exclusively ethical rehoming and rescue.",
               },
               {
-                icon: HomeIcon,
-                title: "Transparent Handoff",
-                desc: "We facilitate clear communication between current owners and prospective adopters for a safe, well-documented pet transition.",
+                icon: Handshake,
+                title: "Safe, Guided Handoff",
+                desc: "We coordinate direct contact between caring owners and prospective adopters to ensure a calm, transparent, and fully agreed-upon handoff.",
               },
             ].map(({ icon: Icon, title, desc }) => (
               <Card
                 key={title}
-                className="rounded-2xl border p-6 space-y-3 shadow-xs hover:border-primary/30 hover:shadow-md transition-all"
+                className="rounded-2xl border bg-card p-6 space-y-3 shadow-2xs hover:border-primary/30 hover:shadow-md transition-all"
               >
                 <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <Icon className="h-5 w-5" />
@@ -411,15 +727,15 @@ export default async function HomePage() {
       </section>
 
       {/* ─────────────────────────────────────────── */}
-      {/* 6. CALL TO ACTION BANNER                    */}
+      {/* 7. CALL TO ACTION BANNER                    */}
       {/* ─────────────────────────────────────────── */}
-      <section className="pb-16 md:pb-20">
+      <section className="py-16 md:py-20">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="relative overflow-hidden rounded-2xl bg-primary text-primary-foreground px-8 py-12 sm:py-16 text-center shadow-lg">
-            {/* Subtle inner pattern */}
+          <div className="relative overflow-hidden rounded-3xl bg-primary text-primary-foreground px-8 py-12 sm:py-16 text-center shadow-lg">
+            {/* Subtle inner radial gradient */}
             <div
               aria-hidden="true"
-              className="absolute inset-0 opacity-10"
+              className="absolute inset-0 opacity-10 pointer-events-none"
               style={{
                 backgroundImage:
                   "radial-gradient(circle at 20% 50%, white 0%, transparent 50%), radial-gradient(circle at 80% 20%, white 0%, transparent 40%)",
@@ -427,13 +743,13 @@ export default async function HomePage() {
             />
 
             <div className="relative z-10 max-w-2xl mx-auto space-y-4">
-              <PawPrint className="h-10 w-10 mx-auto opacity-80 mb-2" />
+              <PawPrint className="h-10 w-10 mx-auto opacity-90 mb-2" />
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight">
                 Ready to find your four-legged best friend?
               </h2>
-              <p className="text-primary-foreground/85 text-sm sm:text-base leading-relaxed max-w-lg mx-auto">
-                Join a community of compassionate pet lovers creating positive
-                outcomes for rescue dogs every day.
+              <p className="text-primary-foreground/90 text-sm sm:text-base leading-relaxed max-w-lg mx-auto">
+                Join our community of compassionate pet lovers creating positive,
+                lifelong outcomes for dogs in need every day.
               </p>
 
               <Separator className="bg-primary-foreground/20 my-6" />
@@ -443,21 +759,21 @@ export default async function HomePage() {
                   href="/dogs"
                   className={cn(
                     buttonVariants({ size: "lg", variant: "secondary" }),
-                    "w-full sm:w-auto h-12 px-7 font-semibold shadow-sm gap-2"
+                    "w-full sm:w-auto h-12 px-8 font-semibold shadow-sm gap-2"
                   )}
                 >
                   <Search className="h-4 w-4" />
-                  Browse Dogs Now
+                  Find a Pet
                 </Link>
                 <Link
-                  href="/sign-up"
+                  href="/rehome"
                   className={cn(
                     buttonVariants({ size: "lg", variant: "outline" }),
-                    "w-full sm:w-auto h-12 px-7 font-semibold gap-2 bg-transparent text-primary-foreground border-primary-foreground/30 hover:bg-primary-foreground/10"
+                    "w-full sm:w-auto h-12 px-8 font-semibold gap-2 bg-transparent text-primary-foreground border-primary-foreground/30 hover:bg-primary-foreground/10"
                   )}
                 >
-                  <Users className="h-4 w-4" />
-                  Create a Free Account
+                  <PlusCircle className="h-4 w-4" />
+                  Rehome a Pet
                 </Link>
               </div>
             </div>

@@ -25,12 +25,6 @@ const guestLinks = [
   { href: "/dogs", label: "Browse Dogs", icon: Dog, exact: false },
 ];
 
-const userLinks = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/my-applications", label: "My Applications", icon: HeartHandshake, exact: false },
-  { href: "/my-dogs", label: "My Dogs", icon: FileText, exact: false },
-];
-
 export function NavLinks({ profile }: NavLinksProps) {
   const pathname = usePathname();
   const isAdmin = profile?.role === "admin";
@@ -57,45 +51,61 @@ export function NavLinks({ profile }: NavLinksProps) {
 
       {profile && (
         <>
-          {/* Rehome — visually distinct CTA */}
+          {/* Dashboard */}
+          <Link
+            href="/dashboard"
+            className={linkClass(isActive("/dashboard", true))}
+          >
+            <LayoutDashboard className="h-3.5 w-3.5" />
+            Dashboard
+          </Link>
+
+          {/* Rehome a Dog */}
           <Link
             href="/rehome"
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
-              isActive("/rehome", false)
-                ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                : "text-muted-foreground hover:text-primary hover:bg-primary/5"
-            )}
+            className={linkClass(isActive("/rehome", false))}
           >
             <PlusCircle className="h-3.5 w-3.5" />
             Rehome a Dog
           </Link>
 
-          {userLinks.map(({ href, label, icon: Icon, exact }) => (
-            <Link key={href} href={href} className={linkClass(isActive(href, exact))}>
-              <Icon className="h-3.5 w-3.5" />
-              {label}
-            </Link>
-          ))}
+          {/* My Applications */}
+          <Link
+            href="/my-applications"
+            className={linkClass(isActive("/my-applications", false))}
+          >
+            <HeartHandshake className="h-3.5 w-3.5" />
+            My Applications
+          </Link>
+
+          {/* My Dogs */}
+          <Link
+            href="/my-dogs"
+            className={linkClass(isActive("/my-dogs", false))}
+          >
+            <FileText className="h-3.5 w-3.5" />
+            My Dogs
+          </Link>
 
           {isAdmin && (
             <Link
               href="/admin"
               className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold ml-1 transition-all",
+                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold ml-1.5 transition-all border",
                 isActive("/admin", false)
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "bg-primary/10 text-primary hover:bg-primary/15 border border-primary/20"
+                  ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                  : "bg-muted/70 text-muted-foreground hover:text-foreground hover:bg-muted border-border"
               )}
             >
               <ShieldAlert className="h-3.5 w-3.5" />
-              Admin
+              <span>Admin</span>
               <Badge
                 variant={isActive("/admin", false) ? "outline" : "secondary"}
                 className={cn(
                   "text-[9px] px-1 py-0 h-3.5 font-bold uppercase tracking-wider",
-                  isActive("/admin", false) &&
-                    "border-primary-foreground/30 text-primary-foreground"
+                  isActive("/admin", false)
+                    ? "border-primary-foreground/30 text-primary-foreground"
+                    : "text-muted-foreground"
                 )}
               >
                 Staff
