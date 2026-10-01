@@ -1,15 +1,9 @@
 import * as React from "react";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { isCurrentUserAdmin } from "@/lib/clerk/auth";
-import {
-  ShieldAlert,
-  LayoutDashboard,
-  Dog,
-  HeartHandshake,
-  Users,
-} from "lucide-react";
+import { ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { AdminNav } from "@/components/admin/AdminNav";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -47,37 +41,8 @@ export default async function AdminLayout({ children }: AdminLayoutProps) {
               </div>
             </div>
 
-            {/* Sub-nav Links */}
-            <nav className="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 text-xs font-semibold">
-              <Link
-                href="/admin"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border bg-background hover:bg-muted text-foreground transition-colors"
-              >
-                <LayoutDashboard className="h-3.5 w-3.5 text-primary" />
-                Overview
-              </Link>
-              <Link
-                href="/admin/dogs"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border bg-background hover:bg-muted text-foreground transition-colors"
-              >
-                <Dog className="h-3.5 w-3.5 text-primary" />
-                Dogs Review
-              </Link>
-              <Link
-                href="/admin/applications"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border bg-background hover:bg-muted text-foreground transition-colors"
-              >
-                <HeartHandshake className="h-3.5 w-3.5 text-primary" />
-                Applications
-              </Link>
-              <Link
-                href="/admin/users"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border bg-background hover:bg-muted text-foreground transition-colors"
-              >
-                <Users className="h-3.5 w-3.5 text-primary" />
-                Users
-              </Link>
-            </nav>
+            {/* Simple Sub-nav Links */}
+            <AdminNav />
           </div>
         </div>
       </div>

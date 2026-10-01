@@ -111,11 +111,11 @@ export function DogFilters({ totalCount }: DogFiltersProps) {
       <div className="flex flex-wrap items-center justify-between gap-4 pt-1 border-t">
         <div className="flex flex-wrap items-center gap-4">
           {/* Size Filter */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Size:
             </span>
-            <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1">
               {["all", "small", "medium", "large", "giant"].map((size) => (
                 <button
                   key={size}
@@ -134,11 +134,11 @@ export function DogFilters({ totalCount }: DogFiltersProps) {
           </div>
 
           {/* Gender Filter */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Gender:
             </span>
-            <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1">
               {["all", "male", "female"].map((gender) => (
                 <button
                   key={gender}

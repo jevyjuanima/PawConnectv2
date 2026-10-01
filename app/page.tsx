@@ -27,21 +27,20 @@ export default async function HomePage() {
   return (
     <div className="flex flex-col gap-16 md:gap-24 pb-16">
       {/* HERO SECTION */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-muted/60 via-background to-background py-16 md:py-24 border-b">
+      <section className="relative overflow-hidden bg-gradient-to-b from-primary/5 via-background to-background py-16 md:py-24 border-b">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-4xl space-y-6">
-          <div className="inline-flex items-center gap-2 rounded-full border bg-background/80 px-3.5 py-1 text-xs font-semibold text-primary shadow-sm backdrop-blur-sm">
+          <div className="inline-flex items-center gap-2 rounded-full border bg-background/80 px-3.5 py-1 text-xs font-semibold text-primary shadow-xs backdrop-blur-xs">
             <Sparkles className="h-3.5 w-3.5" />
-            <span>Ethical Dog Adoption &amp; Responsible Rehoming</span>
+            <span>Ethical Pet Adoption &amp; Responsible Rehoming</span>
           </div>
 
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-foreground leading-[1.15]">
-            Find a loving home. <br />
-            <span className="text-primary bg-clip-text">Give a dog another chance.</span>
+            Every dog deserves a <br />
+            <span className="text-primary">loving forever home.</span>
           </h1>
 
           <p className="mx-auto max-w-2xl text-base sm:text-lg text-muted-foreground leading-relaxed">
-            PawConnect bridges compassionate adopters, pet parents needing to responsibly rehome,
-            and dedicated staff. Every listing is reviewed by administrators for animal safety.
+            PawConnect connects compassionate adopters with pet parents needing to responsibly rehome their dogs. Every listing is reviewed by administrators for veterinary health, transparent history, and animal safety.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
@@ -49,7 +48,7 @@ export default async function HomePage() {
               href="/dogs"
               className={cn(
                 buttonVariants({ size: "lg" }),
-                "w-full sm:w-auto gap-2 px-6 h-12 text-base font-semibold shadow-md"
+                "w-full sm:w-auto gap-2 px-6 h-12 text-base font-semibold shadow-sm"
               )}
             >
               <Search className="h-4 w-4" />
@@ -69,7 +68,7 @@ export default async function HomePage() {
 
           {/* Trust Highlights */}
           <div className="pt-8 grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-border/60 max-w-3xl mx-auto text-left">
-            <div className="flex items-center gap-3 p-2">
+            <div className="flex items-center gap-3 p-2 rounded-xl bg-card/50 border sm:border-transparent">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <ShieldCheck className="h-5 w-5" />
               </div>
@@ -79,23 +78,23 @@ export default async function HomePage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-2">
+            <div className="flex items-center gap-3 p-2 rounded-xl bg-card/50 border sm:border-transparent">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Users className="h-5 w-5" />
               </div>
               <div>
-                <p className="text-xs font-bold text-foreground">Direct Connections</p>
-                <p className="text-[11px] text-muted-foreground">Transparent adopter screening</p>
+                <p className="text-xs font-bold text-foreground">Direct Screening</p>
+                <p className="text-[11px] text-muted-foreground">In-depth adopter questionnaires</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3 p-2">
+            <div className="flex items-center gap-3 p-2 rounded-xl bg-card/50 border sm:border-transparent">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <PawPrint className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-xs font-bold text-foreground">Zero Exploitation</p>
-                <p className="text-[11px] text-muted-foreground">Strict no-breeding policy</p>
+                <p className="text-[11px] text-muted-foreground">Rescue-first, strict no-breeding</p>
               </div>
             </div>
           </div>
@@ -121,7 +120,7 @@ export default async function HomePage() {
             href="/dogs"
             className={cn(
               buttonVariants({ variant: "ghost" }),
-              "gap-1.5 self-start sm:self-auto group text-primary"
+              "gap-1.5 self-start sm:self-auto group text-primary font-medium"
             )}
           >
             View all dogs
@@ -146,7 +145,7 @@ export default async function HomePage() {
             </p>
             <Link
               href="/rehome"
-              className={cn(buttonVariants(), "gap-2")}
+              className={cn(buttonVariants(), "gap-2 shadow-xs")}
             >
               <PlusCircle className="h-4 w-4" />
               Submit a Rehoming Listing
@@ -172,10 +171,10 @@ export default async function HomePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
             {/* For Adopters */}
-            <Card className="rounded-2xl border shadow-sm">
+            <Card className="rounded-2xl border shadow-xs">
               <CardContent className="p-6 sm:p-8 space-y-6">
                 <div className="flex items-center gap-3 border-b pb-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold shadow-xs">
                     <Heart className="h-5 w-5" />
                   </div>
                   <div>
@@ -190,9 +189,9 @@ export default async function HomePage() {
                       1
                     </span>
                     <div>
-                      <h4 className="text-sm font-semibold text-foreground">1. Find a Dog</h4>
+                      <h4 className="text-sm font-semibold text-foreground">1. Find Your Match</h4>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Filter by breed, size, medical status, and location to find the perfect match for your lifestyle.
+                        Filter by breed, size, medical status, and location to find the right companion for your home.
                       </p>
                     </div>
                   </div>
@@ -202,9 +201,9 @@ export default async function HomePage() {
                       2
                     </span>
                     <div>
-                      <h4 className="text-sm font-semibold text-foreground">2. Apply</h4>
+                      <h4 className="text-sm font-semibold text-foreground">2. Submit Questionnaire</h4>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Complete a thorough questionnaire detailing your home environment, yard, and pet experience.
+                        Complete a thorough questionnaire detailing your home environment, yard security, and experience.
                       </p>
                     </div>
                   </div>
@@ -214,9 +213,9 @@ export default async function HomePage() {
                       3
                     </span>
                     <div>
-                      <h4 className="text-sm font-semibold text-foreground">3. Welcome Them Home</h4>
+                      <h4 className="text-sm font-semibold text-foreground">3. Verified Handoff</h4>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Admins review your application, approve the match, and facilitate a safe, verified handoff to their forever home.
+                        Admins review your application, approve the match, and facilitate a safe, verified pet handoff.
                       </p>
                     </div>
                   </div>
@@ -232,10 +231,10 @@ export default async function HomePage() {
             </Card>
 
             {/* For Rehomers */}
-            <Card className="rounded-2xl border shadow-sm">
+            <Card className="rounded-2xl border shadow-xs">
               <CardContent className="p-6 sm:p-8 space-y-6">
                 <div className="flex items-center gap-3 border-b pb-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold shadow-xs">
                     <PlusCircle className="h-5 w-5" />
                   </div>
                   <div>
@@ -250,9 +249,9 @@ export default async function HomePage() {
                       1
                     </span>
                     <div>
-                      <h4 className="text-sm font-semibold text-foreground">Create Dog Profile</h4>
+                      <h4 className="text-sm font-semibold text-foreground">1. Create Dog Profile</h4>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        Share personality details, health records, vaccination status, and clear photos.
+                        Share personality details, veterinary records, vaccination status, and clear photos.
                       </p>
                     </div>
                   </div>
@@ -262,9 +261,9 @@ export default async function HomePage() {
                       2
                     </span>
                     <div>
-                      <h4 className="text-sm font-semibold text-foreground">Administrative Review</h4>
+                      <h4 className="text-sm font-semibold text-foreground">2. Administrative Review</h4>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        PawConnect staff inspect each listing to ensure full medical transparency and safety standards.
+                        PawConnect staff inspect each listing to ensure health transparency and welfare standards.
                       </p>
                     </div>
                   </div>
@@ -274,7 +273,7 @@ export default async function HomePage() {
                       3
                     </span>
                     <div>
-                      <h4 className="text-sm font-semibold text-foreground">Select Verified Adopter</h4>
+                      <h4 className="text-sm font-semibold text-foreground">3. Select Verified Adopter</h4>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         Review vetted applications and choose the loving forever family that best suits your pet.
                       </p>
@@ -309,7 +308,7 @@ export default async function HomePage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="rounded-2xl border p-6 space-y-3">
+          <Card className="rounded-2xl border p-6 space-y-3 shadow-xs">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <FileCheck className="h-6 w-6" />
             </div>
@@ -319,7 +318,7 @@ export default async function HomePage() {
             </p>
           </Card>
 
-          <Card className="rounded-2xl border p-6 space-y-3">
+          <Card className="rounded-2xl border p-6 space-y-3 shadow-xs">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <ShieldCheck className="h-6 w-6" />
             </div>
@@ -329,7 +328,7 @@ export default async function HomePage() {
             </p>
           </Card>
 
-          <Card className="rounded-2xl border p-6 space-y-3">
+          <Card className="rounded-2xl border p-6 space-y-3 shadow-xs">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <HomeIcon className="h-6 w-6" />
             </div>
@@ -343,7 +342,7 @@ export default async function HomePage() {
 
       {/* CALL TO ACTION BANNER */}
       <section className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-3xl bg-primary text-primary-foreground p-8 sm:p-12 md:p-16 text-center shadow-xl">
+        <div className="relative overflow-hidden rounded-3xl bg-primary text-primary-foreground p-8 sm:p-12 md:p-14 text-center shadow-lg">
           <div className="relative z-10 max-w-2xl mx-auto space-y-4">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
               Ready to find your four-legged best friend?
@@ -356,7 +355,7 @@ export default async function HomePage() {
                 href="/dogs"
                 className={cn(
                   buttonVariants({ size: "lg", variant: "secondary" }),
-                  "w-full sm:w-auto h-12 px-6 font-semibold shadow-md"
+                  "w-full sm:w-auto h-12 px-6 font-semibold shadow-sm"
                 )}
               >
                 Browse Dogs Now

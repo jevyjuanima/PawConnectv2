@@ -6,15 +6,28 @@ import {
   Users,
   Clock,
   ArrowRight,
+  ShieldAlert,
+  Calendar,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { getAdminStatsAction } from "@/app/actions/admin";
+import {
+  getAdminStatsAction,
+  getAdminDogsAction,
+  getAdminApplicationsAction,
+} from "@/app/actions/admin";
+import { formatDate } from "@/lib/utils/format";
+import { DogStatusBadge, ApplicationStatusBadge } from "@/components/shared/StatusBadges";
 import { cn } from "@/lib/utils";
 
 export default async function AdminDashboardPage() {
-  const statsRes = await getAdminStatsAction();
+  const [statsRes, pendingDogsRes, pendingAppsRes] = await Promise.all([
+    getAdminStatsAction(),
+    getAdminDogsAction("pending"),
+    getAdminApplicationsAction("pending"),
+  ]);
+
   const stats = statsRes.success && statsRes.data
     ? statsRes.data
     : {
@@ -28,17 +41,46 @@ export default async function AdminDashboardPage() {
         totalUsers: 0,
       };
 
+  const pendingDogsList = pendingDogsRes.success && pendingDogsRes.data ? pendingDogsRes.data : [];
+  const pendingAppsList = pendingAppsRes.success && pendingAppsRes.data ? pendingAppsRes.data : [];
+
   return (
     <div className="space-y-8">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-6">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">
-            Platform Metrics &amp; Operations
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Real-time status overview of dog listings, applicant review pipelines, and system accounts.
+          <div className="flex items-center gap-2 mb-2">
+            <Badge variant="outline" className="text-xs uppercase tracking-wider font-semibold">
+              Admin Console
+            </Badge>
+            <Badge variant="secondary" className="text-xs font-semibold">
+              System Overview
+            </Badge>
+          </div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2.5">
+            <ShieldAlert className="h-7 w-7 text-primary" />
+            Operations Overview
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Real-time status overview of pending dog verification, applicant review pipelines, and registered accounts.
           </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/dogs"
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1.5")}
+          >
+            <Dog className="h-4 w-4" />
+            Dogs ({stats.pendingDogs})
+          </Link>
+          <Link
+            href="/admin/applications"
+            className={cn(buttonVariants({ size: "sm" }), "gap-1.5 shadow-xs")}
+          >
+            <HeartHandshake className="h-4 w-4" />
+            Applications ({stats.pendingApplications})
+          </Link>
         </div>
       </div>
 
@@ -53,16 +95,16 @@ export default async function AdminDashboardPage() {
                     <Clock className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-foreground">
+                    <h2 className="text-sm font-bold text-foreground">
                       {stats.pendingDogs} Pending Dog {stats.pendingDogs === 1 ? "Listing" : "Listings"}
-                    </h3>
+                    </h2>
                     <p className="text-xs text-muted-foreground">
-                      Review submitted profiles and veterinary info before publishing.
+                      Awaiting administrative inspection and veterinary verification.
                     </p>
                   </div>
                 </div>
                 <Link
-                  href="/admin/dogs"
+                  href="/admin/dogs?status=pending"
                   className={cn(buttonVariants({ size: "sm" }), "shrink-0 gap-1 text-xs shadow-xs")}
                 >
                   Review Dogs
@@ -80,16 +122,16 @@ export default async function AdminDashboardPage() {
                     <HeartHandshake className="h-5 w-5" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-foreground">
+                    <h2 className="text-sm font-bold text-foreground">
                       {stats.pendingApplications} Pending {stats.pendingApplications === 1 ? "Application" : "Applications"}
-                    </h3>
+                    </h2>
                     <p className="text-xs text-muted-foreground">
-                      Adoption questionnaires awaiting staff evaluation.
+                      Adoption questionnaires awaiting staff review and applicant vetting.
                     </p>
                   </div>
                 </div>
                 <Link
-                  href="/admin/applications"
+                  href="/admin/applications?status=pending"
                   className={cn(buttonVariants({ size: "sm" }), "shrink-0 gap-1 text-xs shadow-xs")}
                 >
                   Review Apps
@@ -101,28 +143,8 @@ export default async function AdminDashboardPage() {
         </div>
       )}
 
-      {/* Metrics Grid */}
+      {/* Important Metrics Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {/* Total Dogs */}
-        <Card className="rounded-2xl border bg-card p-5 space-y-2 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Total Dogs
-            </span>
-            <Dog className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <p className="text-3xl font-extrabold tracking-tight text-foreground">
-            {stats.totalDogs}
-          </p>
-          <div className="flex items-center gap-2 pt-1 text-[11px] text-muted-foreground">
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-              {stats.availableDogs} Available
-            </span>
-            <span>•</span>
-            <span>{stats.adoptedDogs} Adopted</span>
-          </div>
-        </Card>
-
         {/* Pending Dogs */}
         <Card className="rounded-2xl border bg-card p-5 space-y-2 shadow-xs">
           <div className="flex items-center justify-between">
@@ -135,35 +157,47 @@ export default async function AdminDashboardPage() {
             {stats.pendingDogs}
           </p>
           <p className="text-[11px] text-muted-foreground pt-1">
-            Awaiting verification &amp; publication
+            Need verification &amp; approval
           </p>
         </Card>
 
-        {/* Total Applications */}
+        {/* Pending Applications */}
         <Card className="rounded-2xl border bg-card p-5 space-y-2 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Applications
+              Pending Apps
             </span>
-            <HeartHandshake className="h-4 w-4 text-muted-foreground" />
+            <HeartHandshake className="h-4 w-4 text-primary" />
           </div>
-          <p className="text-3xl font-extrabold tracking-tight text-foreground">
-            {stats.totalApplications}
+          <p className="text-3xl font-extrabold tracking-tight text-foreground text-primary">
+            {stats.pendingApplications}
           </p>
-          <div className="flex items-center gap-2 pt-1 text-[11px] text-muted-foreground">
-            <span className="text-primary font-semibold">
-              {stats.pendingApplications} Pending
+          <p className="text-[11px] text-muted-foreground pt-1">
+            Questionnaires awaiting evaluation
+          </p>
+        </Card>
+
+        {/* Available Dogs */}
+        <Card className="rounded-2xl border bg-card p-5 space-y-2 shadow-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Available Dogs
             </span>
-            <span>•</span>
-            <span>{stats.approvedApplications} Approved</span>
+            <Dog className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
           </div>
+          <p className="text-3xl font-extrabold tracking-tight text-foreground text-emerald-600 dark:text-emerald-400">
+            {stats.availableDogs}
+          </p>
+          <p className="text-[11px] text-muted-foreground pt-1">
+            {stats.totalDogs} total in catalog
+          </p>
         </Card>
 
         {/* Registered Users */}
         <Card className="rounded-2xl border bg-card p-5 space-y-2 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Users
+              Total Users
             </span>
             <Users className="h-4 w-4 text-muted-foreground" />
           </div>
@@ -171,13 +205,134 @@ export default async function AdminDashboardPage() {
             {stats.totalUsers}
           </p>
           <p className="text-[11px] text-muted-foreground pt-1">
-            Registered profiles in database
+            Profiles in database
           </p>
         </Card>
       </div>
 
+      {/* Prioritized Queues (Recent Pending Submissions & Applications) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Pending Dog Listings Queue */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+              <Dog className="h-4 w-4 text-primary" />
+              Pending Dog Submissions
+            </h2>
+            <Link
+              href="/admin/dogs?status=pending"
+              className="text-xs text-primary hover:underline font-semibold flex items-center gap-1"
+            >
+              <span>Manage all ({pendingDogsList.length})</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+
+          {pendingDogsList.length > 0 ? (
+            <div className="space-y-3">
+              {pendingDogsList.slice(0, 3).map((dog) => (
+                <div
+                  key={dog.id}
+                  className="flex items-center justify-between gap-3 p-4 rounded-xl border bg-card shadow-2xs hover:border-primary/30 transition-colors"
+                >
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-sm text-foreground truncate">
+                        {dog.name}
+                      </p>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                        {dog.breed}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <Calendar className="h-3 w-3 shrink-0" />
+                      Submitted {formatDate(dog.created_at)} • {dog.location}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <DogStatusBadge status={dog.status} />
+                    <Link
+                      href="/admin/dogs"
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 px-2.5 text-xs")}
+                    >
+                      Inspect
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed bg-muted/20 p-8 text-center space-y-2">
+              <Dog className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+              <p className="text-xs text-muted-foreground">
+                All dog submissions have been reviewed and processed.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Pending Applications Queue */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+              <HeartHandshake className="h-4 w-4 text-primary" />
+              Pending Adoption Questionnaires
+            </h2>
+            <Link
+              href="/admin/applications?status=pending"
+              className="text-xs text-primary hover:underline font-semibold flex items-center gap-1"
+            >
+              <span>Manage all ({pendingAppsList.length})</span>
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+
+          {pendingAppsList.length > 0 ? (
+            <div className="space-y-3">
+              {pendingAppsList.slice(0, 3).map((app) => (
+                <div
+                  key={app.id}
+                  className="flex items-center justify-between gap-3 p-4 rounded-xl border bg-card shadow-2xs hover:border-primary/30 transition-colors"
+                >
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-bold text-sm text-foreground truncate">
+                        {app.dog?.name || "Dog"}
+                      </p>
+                      <span className="text-xs text-muted-foreground truncate">
+                        by {app.applicant?.first_name || "Applicant"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <Calendar className="h-3 w-3 shrink-0" />
+                      Applied {formatDate(app.created_at)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <ApplicationStatusBadge status={app.status} />
+                    <Link
+                      href="/admin/applications"
+                      className={cn(buttonVariants({ variant: "outline", size: "sm" }), "h-8 px-2.5 text-xs")}
+                    >
+                      Review
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed bg-muted/20 p-8 text-center space-y-2">
+              <HeartHandshake className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+              <p className="text-xs text-muted-foreground">
+                No adoption questionnaires currently awaiting evaluation.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Quick Navigation Panels */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
         <Link
           href="/admin/dogs"
           className="group block rounded-2xl border bg-card p-6 shadow-xs hover:border-primary/40 hover:shadow-sm transition-all"
@@ -187,7 +342,7 @@ export default async function AdminDashboardPage() {
               <Dog className="h-5 w-5" />
             </div>
             <Badge variant="outline" className="text-xs group-hover:border-primary">
-              Manage
+              Manage Dogs
             </Badge>
           </div>
           <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors">
@@ -207,7 +362,7 @@ export default async function AdminDashboardPage() {
               <HeartHandshake className="h-5 w-5" />
             </div>
             <Badge variant="outline" className="text-xs group-hover:border-primary">
-              Manage
+              Manage Applications
             </Badge>
           </div>
           <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors">
@@ -227,7 +382,7 @@ export default async function AdminDashboardPage() {
               <Users className="h-5 w-5" />
             </div>
             <Badge variant="outline" className="text-xs group-hover:border-primary">
-              Manage
+              Manage Users
             </Badge>
           </div>
           <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors">

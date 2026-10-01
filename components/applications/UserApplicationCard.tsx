@@ -7,12 +7,12 @@ import { toast } from "sonner";
 import {
   Calendar,
   MapPin,
-  Clock,
+  Dog as DogIcon,
   CheckCircle2,
+  Clock,
   XCircle,
   AlertCircle,
   ChevronRight,
-  Dog as DogIcon,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
