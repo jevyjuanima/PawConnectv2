@@ -27,7 +27,7 @@ export function Footer() {
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-xs group-hover:shadow-md transition-shadow">
                 <PawPrint className="h-4 w-4" />
               </div>
-              <span className="text-lg font-bold tracking-tight text-foreground">
+              <span className="font-serif text-xl font-bold tracking-tight text-foreground">
                 PawConnect
               </span>
             </Link>

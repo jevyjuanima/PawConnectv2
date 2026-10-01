@@ -33,7 +33,7 @@ export async function Navbar() {
               <PawPrint className="h-5 w-5" />
             </div>
             <div className="flex flex-col">
-              <span className="text-lg font-bold tracking-tight text-foreground leading-none">
+              <span className="font-serif text-xl font-bold tracking-tight text-foreground leading-none">
                 PawConnect
               </span>
               <span className="text-[10px] text-muted-foreground font-medium">

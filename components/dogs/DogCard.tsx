@@ -21,14 +21,17 @@ export function DogCard({ dog }: DogCardProps) {
     <article className="group overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:border-primary/50 flex flex-col justify-between">
       <div>
         {/* Dog Photograph */}
-        <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+        <Link
+          href={`/dogs/${dog.id}`}
+          className="relative block aspect-[4/3] w-full overflow-hidden bg-muted"
+        >
           {primaryImg ? (
             <Image
               src={primaryImg}
               alt={dog.name}
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              className="object-cover transition-transform duration-500 group-hover:scale-102"
+              className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />
           ) : (
             <div className="flex h-full w-full flex-col items-center justify-center bg-muted/50 text-muted-foreground p-6 text-center">
@@ -54,13 +57,13 @@ export function DogCard({ dog }: DogCardProps) {
               {isAvailable ? "Available" : formatCapitalize(dog.status)}
             </span>
           </div>
-        </div>
+        </Link>
 
         {/* Dog Information */}
         <div className="p-5 space-y-2.5">
           <div>
             <h3 className="font-serif text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
-              {dog.name}
+              <Link href={`/dogs/${dog.id}`}>{dog.name}</Link>
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               {dog.breed} · {formatAge(dog.age_years, dog.age_months)}

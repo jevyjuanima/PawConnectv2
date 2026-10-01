@@ -74,17 +74,23 @@ export default async function HomePage() {
             {/* Right Column: Large Real Dog Photograph */}
             <div className="lg:col-span-5 w-full">
               {heroDogImage && heroDog ? (
-                <div className="relative aspect-[4/5] sm:aspect-[3/4] w-full rounded-2xl overflow-hidden bg-muted border shadow-sm">
-                  <Image
-                    src={heroDogImage}
-                    alt={heroDog.name}
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 40vw"
-                    className="object-cover"
-                    priority
-                  />
+                <div className="group relative aspect-[4/5] sm:aspect-[3/4] w-full rounded-2xl overflow-hidden bg-muted border shadow-xs">
+                  <Link
+                    href={`/dogs/${heroDog.id}`}
+                    className="absolute inset-0 z-0"
+                    aria-label={`View ${heroDog.name}'s profile`}
+                  >
+                    <Image
+                      src={heroDogImage}
+                      alt={heroDog.name}
+                      fill
+                      sizes="(max-width: 1024px) 100vw, 40vw"
+                      className="object-cover transition-transform duration-700 group-hover:scale-[1.02]"
+                      priority
+                    />
+                  </Link>
                   {/* Subtle photo caption */}
-                  <div className="absolute bottom-4 left-4 right-4 p-4 rounded-xl bg-background/90 backdrop-blur-md border border-border/80 flex items-center justify-between shadow-xs">
+                  <div className="absolute bottom-4 left-4 right-4 p-3.5 sm:p-4 rounded-xl bg-background/95 backdrop-blur-sm border border-border/80 flex items-center justify-between shadow-xs z-10 pointer-events-none">
                     <div>
                       <p className="font-serif text-base font-bold text-foreground">
                         {heroDog.name}
@@ -95,10 +101,10 @@ export default async function HomePage() {
                     </div>
                     <Link
                       href={`/dogs/${heroDog.id}`}
-                      className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1"
+                      className="pointer-events-auto text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1 group/btn"
                     >
                       <span>Meet {heroDog.name}</span>
-                      <ArrowRight className="h-3 w-3" />
+                      <ArrowRight className="h-3 w-3 transition-transform duration-200 group-hover/btn:translate-x-0.5" />
                     </Link>
                   </div>
                 </div>

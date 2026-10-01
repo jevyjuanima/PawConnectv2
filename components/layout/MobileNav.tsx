@@ -74,7 +74,7 @@ export function MobileNav({ profile }: MobileNavProps) {
                 <PawPrint className="h-4 w-4" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-base tracking-tight leading-tight">PawConnect</span>
+                <span className="font-serif font-bold text-lg tracking-tight leading-tight">PawConnect</span>
                 <span className="text-[10px] text-muted-foreground font-medium">Adoption &amp; Rehoming</span>
               </div>
             </SheetTitle>
