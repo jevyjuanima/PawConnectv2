@@ -19,12 +19,22 @@ The design identity must strictly balance warmth and empathy with modern technol
 - **Professional**: Consistent spacing grid, standardized data tables, accessible typography hierarchy, predictable interactions.
 - **Simple**: Clear paths to action, straightforward forms, no confusing nested navigation, low cognitive load.
 
+### 1.1 Core Design Principles
+1. **Prefer restraint over decoration.**
+2. **Every visual element must have a purpose.**
+3. **Typography, photography, spacing, and alignment establish hierarchy before decorative UI.**
+4. **Do not reproduce generic AI SaaS landing-page patterns.**
+5. **Use cards only when they improve grouping or interaction.**
+6. **Remove unnecessary elements before adding new ones.**
+
 **Strict Prohibitions**:
 - NO cartoonish or childish clip-art.
 - NO excessive or disorienting animations (Framer motion limited to subtle fades/scale-in).
 - NO heavy unreadable gradients or iridescent backgrounds.
 - NO gratuitous glassmorphism that degrades contrast or legibility.
 - NO arbitrary ad-hoc inline styles or utility color hacks.
+- NO decorative paw-dot grids or repetitive background bloat.
+- NO fake statistics bars or pseudo-metrics.
 
 ---
 

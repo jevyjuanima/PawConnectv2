@@ -15,6 +15,8 @@ export function DogCard({ dog }: DogCardProps) {
     dog.images?.find((img) => img.is_primary)?.public_url ||
     dog.images?.[0]?.public_url;
 
+  const isAvailable = dog.status === "available";
+
   return (
     <article className="group overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:border-primary/50 flex flex-col justify-between">
       <div>
@@ -34,6 +36,24 @@ export function DogCard({ dog }: DogCardProps) {
               <span className="text-xs">Photo pending</span>
             </div>
           )}
+
+          {/* Availability Badge */}
+          <div className="absolute top-3 left-3">
+            <span
+              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium backdrop-blur-md shadow-xs ${
+                isAvailable
+                  ? "bg-background/90 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20"
+                  : "bg-background/90 text-muted-foreground border border-border"
+              }`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  isAvailable ? "bg-emerald-500" : "bg-muted-foreground"
+                }`}
+              />
+              {isAvailable ? "Available" : formatCapitalize(dog.status)}
+            </span>
+          </div>
         </div>
 
         {/* Dog Information */}

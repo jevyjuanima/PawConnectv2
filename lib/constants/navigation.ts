@@ -1,6 +1,6 @@
 /**
  * Shared navigation configuration and route definitions.
- * Single source of truth for desktop and mobile navigation.
+ * Role-aware single source of truth for desktop and mobile navigation.
  */
 
 export interface NavLinkItem {
@@ -19,57 +19,46 @@ export const ROUTES = {
   MY_DOGS: "/my-dogs",
   NOTIFICATIONS: "/dashboard#notifications",
   ADMIN: "/admin",
+  ADMIN_DOGS: "/admin/dogs",
+  ADMIN_APPLICATIONS: "/admin/applications",
+  ADMIN_USERS: "/admin/users",
   SIGN_IN: "/sign-in",
+  SIGN_UP: "/sign-up",
 } as const;
 
 /**
- * Public navigation links available to all visitors.
+ * Guest Navigation
+ * Only Browse Dogs, How It Works (+ Sign In, Find a Pet CTA)
  */
-export const PUBLIC_NAV_ITEMS: readonly NavLinkItem[] = [
+export const GUEST_NAV_ITEMS: readonly NavLinkItem[] = [
   { href: ROUTES.DOGS, label: "Browse Dogs" },
   { href: ROUTES.HOW_IT_WORKS, label: "How It Works" },
 ] as const;
 
 /**
- * Primary action for members to submit a dog for rehoming.
+ * Authenticated Normal User Navigation
+ * Browse Dogs, Dashboard, My Applications, My Dogs, Rehome a Dog
  */
-export const MEMBER_PRIMARY_ACTION: NavLinkItem = {
-  href: ROUTES.REHOME,
-  label: "Rehome a Dog",
-};
-
-/**
- * Top-level navigation items for signed-in members on desktop.
- * Note: My Applications and My Dogs are intentionally excluded from desktop top-level,
- * accessible through Dashboard and Mobile Nav.
- */
-export const MEMBER_DESKTOP_NAV_ITEMS: readonly NavLinkItem[] = [
-  ...PUBLIC_NAV_ITEMS,
-  MEMBER_PRIMARY_ACTION,
-  { href: ROUTES.DASHBOARD, label: "Dashboard", exact: true },
-] as const;
-
-/**
- * Member activity navigation items shown in Dashboard and Mobile navigation.
- */
-export const MEMBER_ACTIVITY_ITEMS: readonly NavLinkItem[] = [
+export const USER_NAV_ITEMS: readonly NavLinkItem[] = [
+  { href: ROUTES.DOGS, label: "Browse Dogs" },
   { href: ROUTES.DASHBOARD, label: "Dashboard", exact: true },
   { href: ROUTES.APPLICATIONS, label: "My Applications" },
   { href: ROUTES.MY_DOGS, label: "My Dogs" },
-  { href: ROUTES.NOTIFICATIONS, label: "Notifications" },
+  { href: ROUTES.REHOME, label: "Rehome a Dog" },
 ] as const;
 
 /**
- * Restrained Admin entry point.
+ * Authenticated Admin Navigation
+ * Browse Dogs, Admin Dashboard, Dogs, Applications, Users
  */
-export const ADMIN_NAV_ITEM: NavLinkItem = {
-  href: ROUTES.ADMIN,
-  label: "Admin",
-};
+export const ADMIN_NAV_ITEMS: readonly NavLinkItem[] = [
+  { href: ROUTES.DOGS, label: "Browse Dogs" },
+  { href: ROUTES.ADMIN, label: "Admin Dashboard", exact: true },
+  { href: ROUTES.ADMIN_DOGS, label: "Dogs" },
+  { href: ROUTES.ADMIN_APPLICATIONS, label: "Applications" },
+  { href: ROUTES.ADMIN_USERS, label: "Users" },
+] as const;
 
-/**
- * Primary guest conversion CTA.
- */
 export const GUEST_PRIMARY_CTA: NavLinkItem = {
   href: ROUTES.DOGS,
   label: "Find a Pet",

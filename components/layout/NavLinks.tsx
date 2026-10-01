@@ -6,9 +6,10 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { UserProfile } from "@/lib/clerk/auth";
 import {
-  PUBLIC_NAV_ITEMS,
-  MEMBER_DESKTOP_NAV_ITEMS,
-  ADMIN_NAV_ITEM,
+  GUEST_NAV_ITEMS,
+  USER_NAV_ITEMS,
+  ADMIN_NAV_ITEMS,
+  type NavLinkItem,
 } from "@/lib/constants/navigation";
 
 interface NavLinksProps {
@@ -22,14 +23,19 @@ export function NavLinks({ profile }: NavLinksProps) {
   const isActive = (href: string, exact?: boolean) => {
     if (href.startsWith("/#")) return false;
     if (exact) return pathname === href;
-    return pathname === href || pathname.startsWith(`${href}/`);
+    return pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
   };
 
-  const navItems = profile ? MEMBER_DESKTOP_NAV_ITEMS : PUBLIC_NAV_ITEMS;
+  // Determine active item list based on strictly verified role
+  const navItems: readonly NavLinkItem[] = !profile
+    ? GUEST_NAV_ITEMS
+    : isAdmin
+    ? ADMIN_NAV_ITEMS
+    : USER_NAV_ITEMS;
 
   const linkClass = (active: boolean) =>
     cn(
-      "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+      "px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
       active
         ? "text-foreground font-semibold bg-muted"
         : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
@@ -46,20 +52,6 @@ export function NavLinks({ profile }: NavLinksProps) {
           {item.label}
         </Link>
       ))}
-
-      {isAdmin && (
-        <Link
-          href={ADMIN_NAV_ITEM.href}
-          className={cn(
-            "px-2.5 py-1.5 rounded-lg text-sm font-medium transition-colors ml-1",
-            isActive(ADMIN_NAV_ITEM.href, false)
-              ? "text-foreground font-semibold bg-muted"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-          )}
-        >
-          {ADMIN_NAV_ITEM.label}
-        </Link>
-      )}
     </nav>
   );
 }
