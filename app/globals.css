@@ -76,8 +76,56 @@
   * {
     border-color: var(--border);
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     background-color: var(--background);
     color: var(--foreground);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Improved focus ring consistency */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  /* Section fade-in animation */
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.4s ease-out both;
+  }
+
+  /* Staggered children */
+  .animate-fade-up-delay-1 {
+    animation: fade-up 0.4s ease-out 0.05s both;
+  }
+  .animate-fade-up-delay-2 {
+    animation: fade-up 0.4s ease-out 0.1s both;
+  }
+  .animate-fade-up-delay-3 {
+    animation: fade-up 0.4s ease-out 0.15s both;
+  }
+
+  /* Subtle paw print decorative pattern */
+  .bg-paw-pattern {
+    background-image: radial-gradient(circle, oklch(0.505 0.213 27.518 / 4%) 1px, transparent 1px);
+    background-size: 24px 24px;
   }
 }
