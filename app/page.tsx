@@ -107,15 +107,15 @@ export default async function HomePage() {
               <div className="flex flex-wrap items-center gap-y-2.5 gap-x-6 text-xs text-muted-foreground font-medium pt-2 border-t w-full">
                 <div className="flex items-center gap-1.5">
                   <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span>100% Vetted Listings</span>
+                  <span>Admin-Moderated Listings</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Users className="h-4 w-4 text-primary shrink-0" />
-                  <span>Screened Adopter Community</span>
+                  <span>Structured Applications</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Heart className="h-4 w-4 text-rose-500 shrink-0" />
-                  <span>Zero Commercial Breeding</span>
+                  <span>Ethical Rehoming Platform</span>
                 </div>
               </div>
             </div>
@@ -247,31 +247,31 @@ export default async function HomePage() {
       </section>
 
       {/* ─────────────────────────────────────────── */}
-      {/* 2. STATS BAR                                */}
+      {/* 2. PLATFORM PRINCIPLES                      */}
       {/* ─────────────────────────────────────────── */}
       <section className="border-b bg-muted/30">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-border text-center">
             {[
               {
-                value: "100% Vetted",
-                label: "Admin-Verified Listings",
+                value: "Admin-Reviewed",
+                label: "Moderated Listings",
                 desc: "Every dog profile is inspected before approval",
               },
               {
-                value: "Zero Fees",
-                label: "Free Matching Platform",
-                desc: "No platform fees for rehoming or adopting",
+                value: "Zero Platform Fees",
+                label: "Community Adoption",
+                desc: "No platform fees for rehoming or applying",
               },
               {
-                value: "Screened Families",
-                label: "Adopter Questionnaire",
-                desc: "Housing, lifestyle, and pet history checked",
+                value: "Detailed Forms",
+                label: "Adopter Questionnaires",
+                desc: "Housing, lifestyle, and pet history collected",
               },
               {
                 value: "Direct Handoff",
-                label: "Cage-Free Transitions",
-                desc: "Home-to-home safety without shelter stress",
+                label: "Home-to-Home",
+                desc: "Calm transitions directly between caregiver and adopter",
               },
             ].map(({ value, label, desc }, idx) => (
               <div
@@ -281,7 +281,7 @@ export default async function HomePage() {
                   idx > 1 ? "pt-4 md:pt-3" : ""
                 )}
               >
-                <p className="text-xl sm:text-2xl font-extrabold tracking-tight text-primary">
+                <p className="text-lg sm:text-xl font-extrabold tracking-tight text-primary">
                   {value}
                 </p>
                 <p className="text-xs font-semibold text-foreground">
@@ -398,15 +398,15 @@ export default async function HomePage() {
                 <ul className="space-y-2.5 text-xs text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span>Verified medical history &amp; vaccination records</span>
+                    <span>Clear medical history &amp; vaccination disclosure fields</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span>Direct insight into habits, quirks, and home routines</span>
+                    <span>Direct insight into habits, temperament, and routines</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span>Protected against puppy mills and commercial scams</span>
+                    <span>Platform focused on ethical rehoming and welfare</span>
                   </li>
                 </ul>
               </div>
@@ -486,15 +486,15 @@ export default async function HomePage() {
                 <ul className="space-y-2.5 text-xs text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span>Direct home-to-home handoff reduces separation trauma</span>
+                    <span>Direct home-to-home coordination helps reduce kennel stress</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span>Thorough screening eliminates impulsive adoptions</span>
+                    <span>Application review helps avoid impulsive decisions</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span>Administrative audit trail for verified accountability</span>
+                    <span>Administrative records maintained for accountability</span>
                   </li>
                 </ul>
               </div>
