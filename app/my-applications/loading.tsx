@@ -1,49 +1,46 @@
 import * as React from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent } from "@/components/ui/card";
 
 export default function MyApplicationsLoading() {
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 max-w-4xl">
-      {/* Breadcrumb Skeleton */}
-      <Skeleton className="h-4 w-36" />
-
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 max-w-4xl space-y-8 sm:space-y-10">
       {/* Header Skeleton */}
-      <div className="border-b pb-6 space-y-2">
-        <Skeleton className="h-5 w-28" />
-        <Skeleton className="h-9 w-64" />
-        <Skeleton className="h-4 w-96 max-w-full" />
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border/70 pb-6">
+        <div className="space-y-2">
+          <Skeleton className="h-10 w-48" />
+          <Skeleton className="h-4 w-80 max-w-full" />
+        </div>
+        <Skeleton className="h-5 w-28 shrink-0" />
       </div>
 
-      {/* Card Skeletons */}
+      {/* Application Card Skeletons */}
       <div className="space-y-4">
-        {[1, 2, 3].map((i) => (
-          <Card key={i} className="overflow-hidden rounded-2xl border">
-            <CardContent className="p-0">
-              <div className="flex flex-col md:flex-row">
-                <Skeleton className="h-44 md:w-64 shrink-0 rounded-none" />
-                <div className="flex-1 p-6 space-y-4">
-                  <div className="flex justify-between items-start border-b pb-4">
-                    <div className="space-y-2">
-                      <Skeleton className="h-6 w-36" />
-                      <Skeleton className="h-4 w-48" />
-                    </div>
-                    <Skeleton className="h-4 w-28" />
-                  </div>
-                  <div className="grid grid-cols-4 gap-2 pt-1">
-                    <Skeleton className="h-10 w-full rounded-lg" />
-                    <Skeleton className="h-10 w-full rounded-lg" />
-                    <Skeleton className="h-10 w-full rounded-lg" />
-                    <Skeleton className="h-10 w-full rounded-lg" />
-                  </div>
-                  <div className="flex justify-between pt-2">
-                    <Skeleton className="h-8 w-28" />
-                    <Skeleton className="h-8 w-32" />
-                  </div>
+        {[1, 2].map((i) => (
+          <div
+            key={i}
+            className="overflow-hidden rounded-2xl border border-border/70 bg-card p-0 flex flex-col sm:flex-row"
+          >
+            <Skeleton className="sm:w-52 md:w-60 aspect-[16/10] sm:aspect-auto shrink-0 rounded-none" />
+            <div className="flex-1 p-5 sm:p-6 space-y-4">
+              <div className="flex justify-between items-start">
+                <div className="space-y-2">
+                  <Skeleton className="h-7 w-40" />
+                  <Skeleton className="h-4 w-32" />
                 </div>
+                <Skeleton className="h-6 w-24 rounded-full" />
               </div>
-            </CardContent>
-          </Card>
+
+              <div className="space-y-1.5 pt-2">
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-4 w-72 max-w-full" />
+              </div>
+
+              <div className="pt-4 border-t border-border/60 flex justify-between">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            </div>
+          </div>
         ))}
       </div>
     </div>

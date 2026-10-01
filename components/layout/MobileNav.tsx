@@ -3,20 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Menu,
-  PawPrint,
-  HeartHandshake,
-  Dog,
-  FileText,
-  ShieldAlert,
-  PlusCircle,
-  Home,
-  LogIn,
-  UserPlus,
-  LayoutDashboard,
-  Bell,
-} from "lucide-react";
+import { Menu, PawPrint } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -26,12 +13,16 @@ import {
 } from "@/components/ui/sheet";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
-
-import { SignInButton, SignUpButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { SignInButton, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import type { UserProfile } from "@/lib/clerk/auth";
+import {
+  PUBLIC_NAV_ITEMS,
+  MEMBER_PRIMARY_ACTION,
+  MEMBER_ACTIVITY_ITEMS,
+  ADMIN_NAV_ITEM,
+  GUEST_PRIMARY_CTA,
+} from "@/lib/constants/navigation";
 
 interface MobileNavProps {
   profile: UserProfile | null;
@@ -44,12 +35,18 @@ export function MobileNav({ profile }: MobileNavProps) {
 
   const closeNav = () => setOpen(false);
 
-  const getLinkClass = (isActive: boolean) =>
+  const isActive = (href: string, exact?: boolean) => {
+    if (href.startsWith("/#")) return false;
+    if (exact) return pathname === href;
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
+  const getLinkClass = (active: boolean) =>
     cn(
-      "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
-      isActive
-        ? "bg-primary/10 text-primary font-semibold shadow-2xs"
-        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+      "flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+      active
+        ? "bg-muted text-foreground font-semibold"
+        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
     );
 
   return (
@@ -59,11 +56,11 @@ export function MobileNav({ profile }: MobileNavProps) {
           buttonVariants({ variant: "ghost", size: "icon" }),
           "md:hidden h-9 w-9 text-muted-foreground hover:text-foreground cursor-pointer"
         )}
-        aria-label="Open mobile navigation"
+        aria-label="Open navigation menu"
       >
         <Menu className="h-5 w-5" />
       </SheetTrigger>
-      <SheetContent side="left" className="w-[300px] sm:w-[350px] p-0 flex flex-col justify-between">
+      <SheetContent side="left" className="w-[300px] sm:w-[320px] p-0 flex flex-col justify-between">
         <div className="flex flex-col">
           <SheetHeader className="p-4 border-b text-left">
             <SheetTitle className="flex items-center gap-2.5">
@@ -77,122 +74,106 @@ export function MobileNav({ profile }: MobileNavProps) {
             </SheetTitle>
           </SheetHeader>
 
-          <nav className="p-4 flex flex-col gap-1 overflow-y-auto max-h-[calc(100vh-200px)]">
-            <Link
-              href="/"
-              onClick={closeNav}
-              className={getLinkClass(pathname === "/")}
-            >
-              <Home className="h-4 w-4" />
-              Home
-            </Link>
-
-            <Link
-              href="/dogs"
-              onClick={closeNav}
-              className={getLinkClass(pathname.startsWith("/dogs"))}
-            >
-              <Dog className="h-4 w-4" />
-              Browse Dogs
-            </Link>
+          <nav className="p-4 flex flex-col gap-4 overflow-y-auto max-h-[calc(100vh-210px)]">
+            {/* PUBLIC */}
+            <div className="space-y-1">
+              <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                Public
+              </p>
+              <div className="space-y-0.5">
+                {PUBLIC_NAV_ITEMS.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={closeNav}
+                    className={getLinkClass(isActive(item.href, item.exact))}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
 
             <SignedIn>
-              <Link
-                href="/dashboard"
-                onClick={closeNav}
-                className={getLinkClass(pathname === "/dashboard")}
-              >
-                <LayoutDashboard className="h-4 w-4" />
-                Dashboard
-              </Link>
-
-              <Link
-                href="/rehome"
-                onClick={closeNav}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
-                  pathname.startsWith("/rehome")
-                    ? "bg-primary text-primary-foreground font-semibold shadow-xs"
-                    : "text-muted-foreground hover:bg-primary/5 hover:text-primary"
-                )}
-              >
-                <PlusCircle className="h-4 w-4" />
-                Rehome a Dog
-              </Link>
-
-              <Link
-                href="/my-applications"
-                onClick={closeNav}
-                className={getLinkClass(pathname.startsWith("/my-applications"))}
-              >
-                <HeartHandshake className="h-4 w-4" />
-                My Applications
-              </Link>
-
-              <Link
-                href="/my-dogs"
-                onClick={closeNav}
-                className={getLinkClass(pathname.startsWith("/my-dogs"))}
-              >
-                <FileText className="h-4 w-4" />
-                My Dogs
-              </Link>
-
-              <Link
-                href="/dashboard#notifications"
-                onClick={closeNav}
-                className={getLinkClass(false)}
-              >
-                <Bell className="h-4 w-4" />
-                Notifications
-              </Link>
-
-              {isAdmin && (
-                <>
-                  <Separator className="my-2" />
+              {/* PRIMARY MEMBER ACTION */}
+              <div className="space-y-1 pt-2 border-t">
+                <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  Primary Member Action
+                </p>
+                <div className="space-y-0.5">
                   <Link
-                    href="/admin"
+                    href={MEMBER_PRIMARY_ACTION.href}
                     onClick={closeNav}
                     className={cn(
-                      "flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-semibold transition-all",
-                      pathname.startsWith("/admin")
-                        ? "bg-primary text-primary-foreground shadow-xs"
-                        : "bg-primary/10 text-primary hover:bg-primary/15 border border-primary/20"
+                      "flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold transition-colors",
+                      isActive(MEMBER_PRIMARY_ACTION.href)
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-primary/10 text-primary hover:bg-primary/15"
                     )}
                   >
-                    <span className="flex items-center gap-3">
-                      <ShieldAlert className="h-4 w-4" />
-                      Admin Console
-                    </span>
-                    <Badge
-                      variant={pathname.startsWith("/admin") ? "outline" : "secondary"}
-                      className={cn(
-                        "text-[9px] uppercase font-bold tracking-wider",
-                        pathname.startsWith("/admin") && "border-primary-foreground/30 text-primary-foreground"
-                      )}
-                    >
-                      Staff
-                    </Badge>
+                    {MEMBER_PRIMARY_ACTION.label}
                   </Link>
-                </>
+                </div>
+              </div>
+
+              {/* YOUR ACTIVITY */}
+              <div className="space-y-1 pt-2 border-t">
+                <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                  Your Activity
+                </p>
+                <div className="space-y-0.5">
+                  {MEMBER_ACTIVITY_ITEMS.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={closeNav}
+                      className={getLinkClass(isActive(item.href, item.exact))}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              {/* RESTRAINED ADMIN ENTRY */}
+              {isAdmin && (
+                <div className="space-y-1 pt-2 border-t">
+                  <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                    Administration
+                  </p>
+                  <div className="space-y-0.5">
+                    <Link
+                      href={ADMIN_NAV_ITEM.href}
+                      onClick={closeNav}
+                      className={getLinkClass(isActive(ADMIN_NAV_ITEM.href, false))}
+                    >
+                      {ADMIN_NAV_ITEM.label} Console
+                    </Link>
+                  </div>
+                </div>
               )}
             </SignedIn>
           </nav>
         </div>
 
-        <div className="p-4 border-t flex flex-col gap-3 bg-muted/20">
+        {/* ACCOUNT SECTION (BOTTOM DRAWER) */}
+        <div className="p-4 border-t bg-muted/20 space-y-3">
+          <p className="px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Account
+          </p>
+
           <SignedIn>
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2.5">
                 <UserButton
                   appearance={{
                     elements: {
-                      avatarBox: "h-8 w-8 ring-2 ring-primary/20",
+                      avatarBox: "h-8 w-8 ring-1 ring-border",
                     },
                   }}
                 />
                 <div className="flex flex-col text-left">
-                  <span className="text-xs font-bold text-foreground truncate max-w-[140px]">
+                  <span className="text-xs font-semibold text-foreground truncate max-w-[130px]">
                     {profile?.first_name ? `${profile.first_name} ${profile.last_name || ""}` : "My Account"}
                   </span>
                   <span className="text-[10px] text-muted-foreground">Manage profile</span>
@@ -203,23 +184,25 @@ export function MobileNav({ profile }: MobileNavProps) {
           </SignedIn>
 
           <SignedOut>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">Display Mode</span>
-              <ThemeToggle />
-            </div>
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <SignInButton mode="modal">
-                <Button variant="outline" size="sm" className="w-full gap-1.5" onClick={closeNav}>
-                  <LogIn className="h-3.5 w-3.5" />
-                  Sign In
-                </Button>
-              </SignInButton>
-              <SignUpButton mode="modal">
-                <Button size="sm" className="w-full gap-1.5 shadow-sm" onClick={closeNav}>
-                  <UserPlus className="h-3.5 w-3.5" />
-                  Sign Up
-                </Button>
-              </SignUpButton>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs text-muted-foreground">Theme</span>
+                <ThemeToggle />
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <SignInButton mode="modal">
+                  <Button variant="outline" size="sm" className="w-full text-xs font-medium" onClick={closeNav}>
+                    Sign In
+                  </Button>
+                </SignInButton>
+                <Link
+                  href={GUEST_PRIMARY_CTA.href}
+                  onClick={closeNav}
+                  className={cn(buttonVariants({ size: "sm" }), "w-full text-xs font-medium shadow-xs")}
+                >
+                  {GUEST_PRIMARY_CTA.label}
+                </Link>
+              </div>
             </div>
           </SignedOut>
         </div>

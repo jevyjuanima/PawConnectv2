@@ -3,21 +3,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import {
-  HeartHandshake,
-  Dog as DogIcon,
-  PlusCircle,
   Search,
+  PlusCircle,
   ArrowRight,
-  ShieldCheck,
-  Bell,
-  Heart,
+  Shield,
   Calendar,
-  LayoutDashboard,
 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import {
   DogStatusBadge,
   ApplicationStatusBadge,
@@ -31,7 +23,7 @@ import { cn } from "@/lib/utils";
 
 export const metadata = {
   title: "Dashboard — PawConnect",
-  description: "Your personal adoption and rehoming control center.",
+  description: "Your adoption and rehoming activity.",
 };
 
 export default async function DashboardPage() {
@@ -58,227 +50,154 @@ export default async function DashboardPage() {
   const adoptionsCount = applications.filter(
     (a) => a.status === "approved" || a.status === "completed"
   ).length;
-  const liveDogs = dogs.filter(
-    (d) => d.status === "available" || d.status === "reserved"
+  const activeDogs = dogs.filter(
+    (d) => d.status === "available" || d.status === "reserved" || d.status === "pending"
   ).length;
   const unreadNotifs = notifications.filter((n) => !n.is_read).length;
   const displayName = profile?.first_name || "Pet Lover";
 
-  const summaryCards = [
-    {
-      label: "Applications",
-      value: applications.length,
-      sub: `${pendingApps} in progress`,
-      icon: HeartHandshake,
-      iconColor: "text-primary",
-      iconBg: "bg-primary/10",
-    },
-    {
-      label: "My Dogs",
-      value: dogs.length,
-      sub: `${liveDogs} active listings`,
-      icon: DogIcon,
-      iconColor: "text-primary",
-      iconBg: "bg-primary/10",
-    },
-    {
-      label: "Adoptions",
-      value: adoptionsCount,
-      sub: "approved / finalized",
-      icon: Heart,
-      iconColor: "text-emerald-600 dark:text-emerald-400",
-      iconBg: "bg-emerald-500/10",
-    },
-    {
-      label: "Notifications",
-      value: notifications.length,
-      sub: `${unreadNotifs} unread`,
-      icon: Bell,
-      iconColor: unreadNotifs > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground",
-      iconBg: "bg-amber-500/10",
-    },
-  ];
-
-  const quickActions = [
-    {
-      href: "/dogs",
-      label: "Browse Dogs",
-      icon: Search,
-      desc: "Find available dogs",
-    },
-    {
-      href: "/rehome",
-      label: "Rehome a Dog",
-      icon: PlusCircle,
-      desc: "Submit a new listing",
-    },
-    {
-      href: "/my-applications",
-      label: "My Applications",
-      icon: HeartHandshake,
-      desc: "Track your applications",
-    },
-  ];
-
   return (
-    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8 max-w-6xl">
-      {/* ── 1. WELCOME HEADER ── */}
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-5 pb-6 border-b">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Badge
-              variant="outline"
-              className="text-[10px] uppercase tracking-widest font-semibold"
-            >
-              Member Dashboard
-            </Badge>
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-10 max-w-5xl">
+      {/* ── 1. GREETING & PRIMARY ACTIONS ── */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-6 border-b">
+        <div>
+          <div className="flex items-center gap-2 mb-1.5">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+              Welcome back, {displayName}
+            </h1>
             {profile?.role === "admin" && (
-              <Badge variant="secondary" className="text-[10px] font-semibold">
-                Staff Account
-              </Badge>
+              <Link
+                href="/admin"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground font-medium px-2 py-0.5 rounded border border-border/80 bg-muted/30 ml-2 transition-colors"
+              >
+                <Shield className="h-3 w-3" />
+                Admin
+              </Link>
             )}
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
-              <LayoutDashboard className="h-5 w-5" />
-            </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground leading-tight">
-                Welcome back, {displayName}
-              </h1>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Manage your applications, listed dogs, and review updates.
-              </p>
-            </div>
-          </div>
+          <p className="text-base text-muted-foreground">
+            Your adoption and rehoming activity
+          </p>
         </div>
 
-        {/* Header actions */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Primary Actions */}
+        <div className="flex items-center gap-3 shrink-0">
           <Link
             href="/dogs"
-            className={cn(
-              buttonVariants({ variant: "outline", size: "sm" }),
-              "gap-1.5 font-medium"
-            )}
+            className={cn(buttonVariants({ size: "default" }), "gap-2 shadow-xs")}
           >
-            <Search className="h-3.5 w-3.5" />
-            Browse
+            <Search className="h-4 w-4" />
+            Find a Dog
           </Link>
           <Link
             href="/rehome"
             className={cn(
-              buttonVariants({ size: "sm" }),
-              "gap-1.5 shadow-xs font-medium"
+              buttonVariants({ variant: "outline", size: "default" }),
+              "gap-2"
             )}
           >
-            <PlusCircle className="h-3.5 w-3.5" />
+            <PlusCircle className="h-4 w-4" />
             Rehome a Dog
           </Link>
         </div>
       </div>
 
-      {/* ── 2. SUMMARY KPI CARDS ── */}
-      <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
-          Your Activity at a Glance
-        </p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {summaryCards.map(
-            ({ label, value, sub, icon: Icon, iconColor, iconBg }) => (
-              <Card
-                key={label}
-                className="rounded-2xl border shadow-xs hover:border-primary/20 hover:shadow-md transition-all"
-              >
-                <CardContent className="p-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      {label}
-                    </span>
-                    <div
-                      className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-lg",
-                        iconBg
-                      )}
-                    >
-                      <Icon className={cn("h-4 w-4", iconColor)} />
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-3xl font-extrabold tracking-tight text-foreground">
-                      {value}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          )}
-        </div>
-      </div>
-
-      {/* ── 3. QUICK ACTIONS ── */}
-      <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
-          Quick Actions
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {quickActions.map(({ href, label, icon: Icon, desc }) => (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                "flex items-center gap-3 p-4 rounded-xl border bg-card shadow-2xs",
-                "hover:border-primary/30 hover:shadow-sm hover:bg-primary/[0.02] transition-all group"
-              )}
-            >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                <Icon className="h-4 w-4" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground">{label}</p>
-                <p className="text-xs text-muted-foreground truncate">{desc}</p>
-              </div>
-              <ArrowRight className="h-4 w-4 text-muted-foreground ml-auto shrink-0 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      <Separator />
-
-      {/* ── 4 & 5. RECENT APPLICATIONS & RECENT DOGS ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recent Applications */}
-        <Card className="rounded-2xl border shadow-xs">
-          <CardHeader className="px-5 py-4 border-b flex-row items-center justify-between space-y-0">
-            <div className="flex items-center gap-2">
-              <HeartHandshake className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-bold text-foreground">
-                Recent Applications
-              </h2>
+      {/* ── 2. COMPACT ACTIVITY SUMMARY ── */}
+      <section aria-labelledby="activity-summary-heading">
+        <h2 id="activity-summary-heading" className="sr-only">
+          Activity Summary
+        </h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 rounded-xl border bg-card divide-y md:divide-y-0 md:divide-x divide-border">
+          <div className="p-4 sm:p-5">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
+              Applications
+            </span>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                {applications.length}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {pendingApps} in progress
+              </span>
             </div>
-            <Link
-              href="/my-applications"
-              className="text-xs text-primary hover:underline font-semibold flex items-center gap-1"
-            >
-              View all ({applications.length})
-              <ArrowRight className="h-3 w-3" />
-            </Link>
-          </CardHeader>
-          <CardContent className="p-0">
+          </div>
+
+          <div className="p-4 sm:p-5">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
+              My Dog Listings
+            </span>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                {dogs.length}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {activeDogs} active / pending
+              </span>
+            </div>
+          </div>
+
+          <div className="p-4 sm:p-5">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
+              Adoptions
+            </span>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                {adoptionsCount}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                approved / finalized
+              </span>
+            </div>
+          </div>
+
+          <div className="p-4 sm:p-5">
+            <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
+              Notifications
+            </span>
+            <div className="mt-2 flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                {notifications.length}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {unreadNotifs} unread
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 3 & 4. RECENT APPLICATIONS & MY DOG LISTINGS ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        {/* Recent Applications */}
+        <section aria-labelledby="applications-heading" className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 id="applications-heading" className="text-base font-semibold text-foreground">
+              Recent Applications
+            </h2>
+            {applications.length > 0 && (
+              <Link
+                href="/my-applications"
+                className="text-xs font-medium text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors"
+              >
+                View all ({applications.length})
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            )}
+          </div>
+
+          <div className="rounded-xl border bg-card overflow-hidden">
             {applications.length > 0 ? (
-              <ul className="divide-y">
+              <ul className="divide-y divide-border">
                 {applications.slice(0, 4).map((app) => (
                   <li
                     key={app.id}
-                    className="flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-muted/30 transition-colors"
+                    className="flex items-center justify-between gap-4 p-4 hover:bg-muted/40 transition-colors"
                   >
                     <div className="space-y-0.5 min-w-0">
                       <p className="font-semibold text-sm text-foreground truncate">
                         {app.dog?.name || "Dog"}
                       </p>
-                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                         <Calendar className="h-3 w-3 shrink-0" />
                         Applied {formatDate(app.created_at)}
                       </p>
@@ -288,57 +207,59 @@ export default async function DashboardPage() {
                 ))}
               </ul>
             ) : (
-              <div className="flex flex-col items-center justify-center p-10 text-center space-y-3">
-                <HeartHandshake className="h-8 w-8 text-muted-foreground/40" />
-                <p className="text-xs text-muted-foreground max-w-xs">
-                  No adoption applications yet. Find a dog and start your
-                  journey.
+              <div className="p-8 text-center space-y-2">
+                <p className="text-sm font-medium text-foreground">
+                  No applications yet
                 </p>
-                <Link
-                  href="/dogs"
-                  className={cn(
-                    buttonVariants({ variant: "outline", size: "sm" }),
-                    "gap-1.5 mt-1"
-                  )}
-                >
-                  <Search className="h-3.5 w-3.5" />
-                  Browse Available Dogs
-                </Link>
+                <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                  When you apply to adopt a dog, your application progress will appear here.
+                </p>
+                <div className="pt-2">
+                  <Link
+                    href="/dogs"
+                    className={cn(
+                      buttonVariants({ variant: "outline", size: "sm" }),
+                      "text-xs"
+                    )}
+                  >
+                    Find a Dog
+                  </Link>
+                </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </section>
 
-        {/* Recent Dog Submissions */}
-        <Card className="rounded-2xl border shadow-xs">
-          <CardHeader className="px-5 py-4 border-b flex-row items-center justify-between space-y-0">
-            <div className="flex items-center gap-2">
-              <DogIcon className="h-4 w-4 text-primary" />
-              <h2 className="text-sm font-bold text-foreground">
-                My Dog Listings
-              </h2>
-            </div>
-            <Link
-              href="/my-dogs"
-              className="text-xs text-primary hover:underline font-semibold flex items-center gap-1"
-            >
-              View all ({dogs.length})
-              <ArrowRight className="h-3 w-3" />
-            </Link>
-          </CardHeader>
-          <CardContent className="p-0">
+        {/* My Dog Listings */}
+        <section aria-labelledby="dog-listings-heading" className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 id="dog-listings-heading" className="text-base font-semibold text-foreground">
+              My Dog Listings
+            </h2>
+            {dogs.length > 0 && (
+              <Link
+                href="/my-dogs"
+                className="text-xs font-medium text-muted-foreground hover:text-foreground inline-flex items-center gap-1 transition-colors"
+              >
+                View all ({dogs.length})
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            )}
+          </div>
+
+          <div className="rounded-xl border bg-card overflow-hidden">
             {dogs.length > 0 ? (
-              <ul className="divide-y">
+              <ul className="divide-y divide-border">
                 {dogs.slice(0, 4).map((dog) => (
                   <li
                     key={dog.id}
-                    className="flex items-center justify-between gap-3 px-5 py-3.5 hover:bg-muted/30 transition-colors"
+                    className="flex items-center justify-between gap-4 p-4 hover:bg-muted/40 transition-colors"
                   >
                     <div className="space-y-0.5 min-w-0">
                       <p className="font-semibold text-sm text-foreground truncate">
                         {dog.name}
                       </p>
-                      <p className="text-[11px] text-muted-foreground truncate">
+                      <p className="text-xs text-muted-foreground truncate">
                         {dog.breed} · Listed {formatDate(dog.created_at)}
                       </p>
                     </div>
@@ -347,97 +268,87 @@ export default async function DashboardPage() {
                 ))}
               </ul>
             ) : (
-              <div className="flex flex-col items-center justify-center p-10 text-center space-y-3">
-                <DogIcon className="h-8 w-8 text-muted-foreground/40" />
-                <p className="text-xs text-muted-foreground max-w-xs">
-                  No rehoming listings yet. Help a dog find a loving home.
+              <div className="p-8 text-center space-y-2">
+                <p className="text-sm font-medium text-foreground">
+                  No dogs listed
                 </p>
-                <Link
-                  href="/rehome"
-                  className={cn(
-                    buttonVariants({ variant: "outline", size: "sm" }),
-                    "gap-1.5 mt-1"
-                  )}
-                >
-                  <PlusCircle className="h-3.5 w-3.5" />
-                  Submit a Listing
-                </Link>
+                <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                  If you need to rehome a dog, you can submit a listing for review.
+                </p>
+                <div className="pt-2">
+                  <Link
+                    href="/rehome"
+                    className={cn(
+                      buttonVariants({ variant: "outline", size: "sm" }),
+                      "text-xs"
+                    )}
+                  >
+                    Rehome a Dog
+                  </Link>
+                </div>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       </div>
 
-      {/* ── 6. RECENT NOTIFICATIONS ── */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
+      {/* ── 5. RECENT NOTIFICATIONS ── */}
+      <section id="notifications" aria-labelledby="notifications-heading" className="space-y-3">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Bell className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-bold text-foreground">
+            <h2 id="notifications-heading" className="text-base font-semibold text-foreground">
               Recent Notifications
             </h2>
+            {unreadNotifs > 0 && (
+              <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                {unreadNotifs} unread
+              </span>
+            )}
           </div>
-          {unreadNotifs > 0 && (
-            <Badge
-              variant="secondary"
-              className="text-[10px] font-semibold"
-            >
-              {unreadNotifs} Unread
-            </Badge>
-          )}
         </div>
 
-        {notifications.length > 0 ? (
-          <div className="space-y-2">
-            {notifications.slice(0, 5).map((notif) => (
-              <div
-                key={notif.id}
-                className={cn(
-                  "flex items-start justify-between gap-4 rounded-xl border px-4 py-3 transition-colors",
-                  notif.is_read
-                    ? "bg-card"
-                    : "bg-primary/[0.04] border-primary/20 shadow-2xs"
-                )}
-              >
-                <div className="flex items-start gap-2.5 min-w-0">
-                  {!notif.is_read && (
-                    <span className="mt-1.5 h-2 w-2 rounded-full bg-primary shrink-0" />
+        <div className="rounded-xl border bg-card overflow-hidden">
+          {notifications.length > 0 ? (
+            <ul className="divide-y divide-border">
+              {notifications.slice(0, 5).map((notif) => (
+                <li
+                  key={notif.id}
+                  className={cn(
+                    "flex items-start justify-between gap-4 p-4 transition-colors",
+                    !notif.is_read ? "bg-muted/30" : "hover:bg-muted/20"
                   )}
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">
-                      {notif.title}
-                    </p>
-                    <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                >
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      {!notif.is_read && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                      )}
+                      <p className="text-sm font-medium text-foreground">
+                        {notif.title}
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
                       {notif.message}
                     </p>
                   </div>
-                </div>
-                <span className="text-[11px] text-muted-foreground shrink-0 whitespace-nowrap mt-0.5">
-                  {formatDate(notif.created_at)}
-                </span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-dashed bg-muted/20 flex flex-col items-center justify-center p-10 text-center space-y-2">
-            <Bell className="h-8 w-8 text-muted-foreground/40" />
-            <p className="text-xs text-muted-foreground max-w-xs">
-              No notifications yet. You&apos;ll receive updates when your
-              applications or listings are reviewed.
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* ── SAFETY NOTICE ── */}
-      <div className="rounded-2xl border bg-muted/20 p-4 flex items-center gap-3 text-xs text-muted-foreground">
-        <ShieldCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-        <span>
-          PawConnect administrators manually review each dog listing and adoption
-          questionnaire to ensure animal welfare and prevent unauthorized
-          commercial exploitation.
-        </span>
-      </div>
+                  <span className="text-[11px] text-muted-foreground shrink-0 whitespace-nowrap">
+                    {formatDate(notif.created_at)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="p-8 text-center space-y-1">
+              <p className="text-sm font-medium text-foreground">
+                No notifications yet
+              </p>
+              <p className="text-xs text-muted-foreground">
+                You will receive updates here when your applications or listings are reviewed.
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

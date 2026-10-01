@@ -6,13 +6,13 @@ import { Separator } from "@/components/ui/separator";
 const footerLinks = {
   adopt: [
     { href: "/dogs", label: "Browse Dogs" },
-    { href: "/#how-it-works", label: "Adoption Process" },
-    { href: "/my-applications", label: "Track Applications" },
+    { href: "/#how-it-works", label: "How It Works" },
+    { href: "/dashboard", label: "Dashboard" },
   ],
   rehome: [
-    { href: "/rehome", label: "Submit a Listing" },
-    { href: "/my-dogs", label: "Manage My Listings" },
-    { href: "/#safety", label: "Rehoming Guidelines" },
+    { href: "/rehome", label: "Rehome a Dog" },
+    { href: "/my-dogs", label: "My Dog Listings" },
+    { href: "/#safety", label: "Trust & Safety" },
   ],
 };
 
@@ -33,15 +33,14 @@ export function Footer() {
             </Link>
 
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-              A dedicated pet adoption and responsible rehoming platform.
-              Connecting compassionate adopters with dogs seeking lifelong,
-              loving families through verified listings and transparent
-              oversight.
+              A community platform connecting people who want to adopt dogs
+              with caregivers who need to rehome responsibly through structured
+              applications and administrative review.
             </p>
 
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>Verified listings · Zero-tolerance exploitation policy</span>
+              <span>Admin-reviewed listings · Structured application process</span>
             </div>
           </div>
 
@@ -94,7 +93,7 @@ export function Footer() {
                 <span className="text-xs">support@pawconnect.org</span>
               </li>
               <li className="text-xs leading-relaxed">
-                Administrative desk available Mon–Fri, 9am–6pm.
+                Platform administration and review desk available weekdays.
               </li>
             </ul>
           </div>
@@ -105,7 +104,7 @@ export function Footer() {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
           <p>© {new Date().getFullYear()} PawConnect. All rights reserved.</p>
           <div className="flex items-center gap-1.5">
-            <span>Built with care for animals everywhere</span>
+            <span>Thoughtful adoption and responsible rehoming</span>
             <Heart className="h-3.5 w-3.5 text-rose-500 fill-rose-500" />
           </div>
         </div>

@@ -17,12 +17,14 @@ interface StatusBadgeProps {
   status: string;
   className?: string;
   showIcon?: boolean;
+  label?: string;
 }
 
 export function DogStatusBadge({
   status,
   className,
   showIcon = true,
+  label,
 }: StatusBadgeProps) {
   let icon: React.ReactNode = null;
   let badgeClass = "";
@@ -62,17 +64,24 @@ export function DogStatusBadge({
       badgeClass = "bg-muted text-muted-foreground border-border";
   }
 
+  let defaultLabel = formatStatusLabel(status);
+  if (status === DOG_STATUSES.PENDING) {
+    defaultLabel = "Pending Review";
+  } else if (status === DOG_STATUSES.REJECTED) {
+    defaultLabel = "Not approved";
+  }
+
   return (
     <Badge
       variant="outline"
       className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-semibold capitalize tracking-wide transition-colors",
+        "inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-semibold tracking-wide transition-colors",
         badgeClass,
         className
       )}
     >
       {showIcon && icon}
-      <span>{formatStatusLabel(status)}</span>
+      <span>{label || defaultLabel}</span>
     </Badge>
   );
 }

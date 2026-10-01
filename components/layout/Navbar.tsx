@@ -1,17 +1,18 @@
 import * as React from "react";
 import Link from "next/link";
-import { PawPrint, LogIn, UserPlus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { PawPrint } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { NavLinks } from "@/components/layout/NavLinks";
 import { MobileNav } from "@/components/layout/MobileNav";
 import { getCurrentUserProfile } from "@/lib/clerk/auth";
+import { GUEST_PRIMARY_CTA } from "@/lib/constants/navigation";
+import { cn } from "@/lib/utils";
 import {
   SignedIn,
   SignedOut,
   SignInButton,
-  SignUpButton,
   UserButton,
 } from "@clerk/nextjs";
 
@@ -19,16 +20,16 @@ export async function Navbar() {
   const profile = await getCurrentUserProfile();
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
+    <header className="sticky top-0 z-40 w-full border-b bg-background/90 backdrop-blur-sm">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand Logo & Desktop Nav */}
-        <div className="flex items-center gap-6 md:gap-8">
+        <div className="flex items-center gap-6 lg:gap-8">
           <Link
             href="/"
-            className="flex items-center gap-2.5 transition-transform hover:scale-105"
+            className="flex items-center gap-2.5 transition-opacity hover:opacity-90"
             aria-label="PawConnect Home"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold shadow-sm">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold shadow-xs">
               <PawPrint className="h-5 w-5" />
             </div>
             <div className="flex flex-col">
@@ -54,7 +55,7 @@ export async function Navbar() {
               <UserButton
                 appearance={{
                   elements: {
-                    avatarBox: "h-9 w-9 ring-2 ring-primary/20",
+                    avatarBox: "h-9 w-9 ring-1 ring-border",
                   },
                 }}
               />
@@ -62,19 +63,18 @@ export async function Navbar() {
           </SignedIn>
 
           <SignedOut>
-            <div className="hidden sm:flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-2">
               <SignInButton mode="modal">
-                <Button variant="ghost" size="sm" className="gap-1.5 font-medium">
-                  <LogIn className="h-4 w-4" />
+                <Button variant="ghost" size="sm" className="font-medium text-sm">
                   Sign In
                 </Button>
               </SignInButton>
-              <SignUpButton mode="modal">
-                <Button size="sm" className="gap-1.5 shadow-sm font-medium">
-                  <UserPlus className="h-4 w-4" />
-                  Get Started
-                </Button>
-              </SignUpButton>
+              <Link
+                href={GUEST_PRIMARY_CTA.href}
+                className={cn(buttonVariants({ size: "sm" }), "shadow-xs font-medium text-sm")}
+              >
+                {GUEST_PRIMARY_CTA.label}
+              </Link>
             </div>
           </SignedOut>
 
