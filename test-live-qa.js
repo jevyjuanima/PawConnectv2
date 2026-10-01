@@ -102,8 +102,8 @@ async function runQA() {
     console.log(`   ✅ Storage access succeeded: found ${files.length} items in 'dog-photos'`);
   }
 
-  // 5. Next.js Dev Server Live HTTP Endpoints
-  console.log("\n5️⃣  Verifying Next.js 15.5.27 Dev Server Routes...");
+  // 5. Next.js Server Live HTTP Endpoints
+  console.log("\n5️⃣  Verifying Next.js 16.3.8 Server Routes...");
   const endpoints = [
     { url: "http://localhost:3000/", name: "Local Root (/)" },
     { url: "http://localhost:3000/dogs", name: "Local /dogs" },

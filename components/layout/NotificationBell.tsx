@@ -5,6 +5,7 @@ import { Bell, Info } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -65,57 +66,59 @@ export function NotificationBell() {
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 p-0 shadow-lg">
-        <div className="flex items-center justify-between px-4 py-3 border-b">
-          <DropdownMenuLabel className="p-0 text-sm font-semibold">
-            Notifications
-          </DropdownMenuLabel>
-          {unreadCount > 0 && (
-            <span className="text-xs text-muted-foreground font-normal">
-              {unreadCount} unread
-            </span>
-          )}
-        </div>
+        <DropdownMenuGroup>
+          <div className="flex items-center justify-between px-4 py-3 border-b">
+            <DropdownMenuLabel className="p-0 text-sm font-semibold">
+              Notifications
+            </DropdownMenuLabel>
+            {unreadCount > 0 && (
+              <span className="text-xs text-muted-foreground font-normal">
+                {unreadCount} unread
+              </span>
+            )}
+          </div>
 
-        <div className="max-h-80 overflow-y-auto divide-y">
-          {loading ? (
-            <div className="py-6 text-center text-xs text-muted-foreground">
-              Loading notifications...
-            </div>
-          ) : notifications.length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground px-4">
-              <Info className="h-8 w-8 mx-auto mb-2 text-muted-foreground/60" />
-              <p className="font-medium text-foreground">No notifications</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Status updates for your dogs and applications will appear here.
-              </p>
-            </div>
-          ) : (
-            notifications.map((n) => (
-              <DropdownMenuItem
-                key={n.id}
-                onClick={() => handleMarkAsRead(n.id)}
-                className={`p-3 cursor-pointer flex flex-col items-start gap-1 rounded-none focus:bg-muted/60 ${
-                  !n.is_read ? "bg-muted/30" : ""
-                }`}
-              >
-                <div className="flex items-center justify-between w-full">
-                  <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    {!n.is_read && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-                    )}
-                    {n.title}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    {new Date(n.created_at).toLocaleDateString()}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground line-clamp-2">
-                  {n.message}
+          <div className="max-h-80 overflow-y-auto divide-y">
+            {loading ? (
+              <div className="py-6 text-center text-xs text-muted-foreground">
+                Loading notifications...
+              </div>
+            ) : notifications.length === 0 ? (
+              <div className="py-8 text-center text-sm text-muted-foreground px-4">
+                <Info className="h-8 w-8 mx-auto mb-2 text-muted-foreground/60" />
+                <p className="font-medium text-foreground">No notifications</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Status updates for your dogs and applications will appear here.
                 </p>
-              </DropdownMenuItem>
-            ))
-          )}
-        </div>
+              </div>
+            ) : (
+              notifications.map((n) => (
+                <DropdownMenuItem
+                  key={n.id}
+                  onClick={() => handleMarkAsRead(n.id)}
+                  className={`p-3 cursor-pointer flex flex-col items-start gap-1 rounded-none focus:bg-muted/60 ${
+                    !n.is_read ? "bg-muted/30" : ""
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      {!n.is_read && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                      )}
+                      {n.title}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(n.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    {n.message}
+                  </p>
+                </DropdownMenuItem>
+              ))
+            )}
+          </div>
+        </DropdownMenuGroup>
 
         {notifications.length > 0 && (
           <>
