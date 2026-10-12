@@ -193,16 +193,16 @@ export function NotificationBell() {
         side="bottom"
         sideOffset={8}
         collisionPadding={12}
-        className="w-[calc(100vw-1.5rem)] sm:w-[390px] max-w-[400px] p-0 shadow-xl border border-border/80 rounded-2xl bg-popover overflow-hidden flex flex-col"
+        className="w-[calc(100vw-1.5rem)] sm:w-[390px] max-w-[400px] p-0 shadow-xl rounded-2xl overflow-hidden flex flex-col bg-black text-white border border-neutral-700"
       >
         {/* Compact, Sticky Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/60 bg-popover/95 px-4 py-3 backdrop-blur-xs">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-neutral-700 bg-black/95 px-4 py-3 backdrop-blur-xs">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold tracking-tight text-foreground">
+            <span className="text-sm font-semibold tracking-tight text-white">
               Notifications
             </span>
             {unreadCount > 0 && (
-              <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+              <span className="inline-flex items-center rounded-full bg-neutral-800 border border-neutral-700 px-2 py-0.5 text-[11px] font-medium text-white">
                 {unreadCount} new
               </span>
             )}
@@ -213,7 +213,7 @@ export function NotificationBell() {
               type="button"
               onClick={handleMarkAllAsRead}
               disabled={markingAll}
-              className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer disabled:opacity-50"
+              className="text-xs font-medium text-neutral-300 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
             >
               {markingAll ? "Marking..." : "Mark all as read"}
             </button>
@@ -221,21 +221,21 @@ export function NotificationBell() {
         </div>
 
         {/* Scrollable Notification List */}
-        <div className="max-h-[380px] sm:max-h-[420px] overflow-y-auto divide-y divide-border/40 overscroll-contain">
+        <div className="max-h-[380px] sm:max-h-[420px] overflow-y-auto divide-y divide-neutral-700 overscroll-contain [color-scheme:dark]">
           {loading && notifications.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 px-4 text-center text-xs text-muted-foreground">
-              <RefreshCw className="size-4 animate-spin mb-2 text-muted-foreground/60" />
+            <div className="flex flex-col items-center justify-center py-10 px-4 text-center text-xs text-neutral-300">
+              <RefreshCw className="size-4 animate-spin mb-2 text-neutral-400" />
               Loading notifications...
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-              <div className="flex size-10 items-center justify-center rounded-full bg-muted/60 text-muted-foreground mb-3">
+              <div className="flex size-10 items-center justify-center rounded-full bg-neutral-800 text-neutral-300 mb-3">
                 <Bell className="size-4.5" />
               </div>
-              <p className="text-sm font-semibold text-foreground">
+              <p className="text-sm font-semibold text-white">
                 You&apos;re all caught up
               </p>
-              <p className="mt-1 text-xs text-muted-foreground max-w-[220px]">
+              <p className="mt-1 text-xs text-neutral-300 max-w-[220px]">
                 No new notifications right now.
               </p>
             </div>
@@ -253,10 +253,10 @@ export function NotificationBell() {
                   }
                 }}
                 className={cn(
-                  "group flex items-start gap-3 p-3.5 sm:p-4 transition-colors cursor-pointer text-left select-none focus:outline-none focus-visible:bg-muted/70",
+                  "group flex items-start gap-3 p-3.5 sm:p-4 transition-colors cursor-pointer text-left select-none focus:outline-none focus-visible:bg-neutral-800",
                   !n.is_read
-                    ? "bg-primary/[0.03] hover:bg-primary/[0.06] dark:bg-primary/[0.05] dark:hover:bg-primary/[0.09]"
-                    : "bg-transparent hover:bg-muted/40"
+                    ? "bg-neutral-800 hover:bg-neutral-700"
+                    : "bg-black hover:bg-neutral-900"
                 )}
               >
                 {/* Small status/type icon */}
@@ -269,8 +269,8 @@ export function NotificationBell() {
                       className={cn(
                         "text-xs leading-snug break-words",
                         !n.is_read
-                          ? "font-semibold text-foreground"
-                          : "font-medium text-foreground/80"
+                          ? "font-semibold text-white"
+                          : "font-medium text-neutral-300"
                       )}
                     >
                       {n.title}
@@ -285,12 +285,12 @@ export function NotificationBell() {
                   </div>
 
                   {/* Unclipped Message Preview */}
-                  <p className="text-xs leading-relaxed text-muted-foreground break-words whitespace-normal">
+                  <p className="text-xs leading-relaxed text-neutral-300 break-words whitespace-normal">
                     {n.message}
                   </p>
 
                   {/* Subtle Timestamp */}
-                  <span className="mt-0.5 text-[11px] font-normal text-muted-foreground/75">
+                  <span className="mt-0.5 text-[11px] font-normal text-neutral-300">
                     {formatRelativeTime(n.created_at)}
                   </span>
                 </div>
@@ -300,11 +300,11 @@ export function NotificationBell() {
         </div>
 
         {/* Subtle Secondary Footer */}
-        <div className="border-t border-border/60 bg-muted/20 p-2 text-center">
+        <div className="border-t border-neutral-700 bg-black p-2 text-center">
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-full text-xs font-normal text-muted-foreground hover:text-foreground cursor-pointer"
+            className="h-8 w-full text-xs font-normal text-white hover:bg-neutral-800 cursor-pointer"
             onClick={fetchNotifications}
             disabled={loading}
           >

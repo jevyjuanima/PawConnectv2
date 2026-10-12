@@ -161,10 +161,10 @@ export function AdminDogRow({ dog: initialDog }: AdminDogRowProps) {
                 <XCircle className="h-3.5 w-3.5" />
                 Reject
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="bg-black text-white border-neutral-700 [&>button]:text-white [&>button]:hover:text-white [&>button]:hover:bg-neutral-800">
                 <DialogHeader>
-                  <DialogTitle>Reject Dog Listing: {dog.name}</DialogTitle>
-                  <DialogDescription>
+                  <DialogTitle className="text-white">Reject Dog Listing: {dog.name}</DialogTitle>
+                  <DialogDescription className="text-neutral-300">
                     Provide a clear explanation for rejecting this listing. The reason will be sent to the pet owner.
                   </DialogDescription>
                 </DialogHeader>
@@ -175,6 +175,7 @@ export function AdminDogRow({ dog: initialDog }: AdminDogRowProps) {
                     onChange={(e) => setRejectReason(e.target.value)}
                     placeholder="e.g. Unclear vaccination records, missing location confirmation, or violates policy..."
                     rows={4}
+                    className="bg-neutral-900 text-white border-neutral-700 placeholder:text-neutral-400"
                   />
                 </div>
 
@@ -183,6 +184,7 @@ export function AdminDogRow({ dog: initialDog }: AdminDogRowProps) {
                     variant="outline"
                     onClick={() => setRejectDialogOpen(false)}
                     disabled={processing}
+                    className="bg-transparent text-white border-neutral-600 hover:bg-neutral-800 hover:text-white"
                   >
                     Cancel
                   </Button>
@@ -190,6 +192,7 @@ export function AdminDogRow({ dog: initialDog }: AdminDogRowProps) {
                     variant="destructive"
                     onClick={handleReject}
                     disabled={processing || !rejectReason.trim()}
+                    className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                   >
                     {processing ? "Rejecting..." : "Confirm Rejection"}
                   </Button>
