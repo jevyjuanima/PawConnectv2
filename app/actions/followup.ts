@@ -120,7 +120,25 @@ export async function submitFollowUpReportAction(
     }
 
     if (followup.status === FOLLOWUP_STATUSES.REVIEWED) {
-      return { success: false, error: "This monthly report has already been reviewed by staff" };
+      return { success: false, error: "This monthly report has already been reviewed and finalized by staff" };
+    }
+
+    if (followup.status === FOLLOWUP_STATUSES.SUBMITTED) {
+      return {
+        success: false,
+        error: "This monthly report has already been submitted and is currently awaiting staff review",
+      };
+    }
+
+    if (
+      followup.status !== FOLLOWUP_STATUSES.UPCOMING &&
+      followup.status !== FOLLOWUP_STATUSES.DUE &&
+      followup.status !== FOLLOWUP_STATUSES.NEEDS_FOLLOW_UP
+    ) {
+      return {
+        success: false,
+        error: `Cannot submit report for a follow-up with status '${followup.status}'`,
+      };
     }
 
     const updatePayload = {
