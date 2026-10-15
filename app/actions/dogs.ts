@@ -258,9 +258,12 @@ export async function createDogAction(
       status: DOG_STATUSES.PENDING,
     };
 
-    if (videoStoragePath || (videoUrl && !videoUrl.startsWith("blob:"))) {
-      dogPayload.video_url = videoUrl && !videoUrl.startsWith("blob:") ? videoUrl : null;
+    if (videoStoragePath) {
+      if (!videoStoragePath.startsWith(`dogs/${userId}/`)) {
+        return { success: false, error: "Unauthorized video storage path: must belong to the listing owner" };
+      }
       dogPayload.video_storage_path = videoStoragePath;
+      dogPayload.video_url = videoUrl && !videoUrl.startsWith("blob:") ? videoUrl : null;
     }
 
     const { data: newDog, error: dogError } = await adminSupabase
@@ -363,7 +366,13 @@ export async function updateDogAction(
     if (parsed.data.special_needs !== undefined) updatePayload.special_needs = parsed.data.special_needs || null;
     if (parsed.data.location !== undefined) updatePayload.location = parsed.data.location;
     if (parsed.data.video_url !== undefined) updatePayload.video_url = parsed.data.video_url || null;
-    if (parsed.data.video_storage_path !== undefined) updatePayload.video_storage_path = parsed.data.video_storage_path || null;
+    if (parsed.data.video_storage_path !== undefined) {
+      const vPath = parsed.data.video_storage_path;
+      if (vPath && !vPath.startsWith(`dogs/${userId}/`)) {
+        return { success: false, error: "Unauthorized video storage path: must belong to the listing owner" };
+      }
+      updatePayload.video_storage_path = vPath || null;
+    }
 
     const { data: updatedDog, error: updateError } = await adminSupabase
       .from("dogs")

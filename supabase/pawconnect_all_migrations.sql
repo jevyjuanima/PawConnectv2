@@ -179,7 +179,7 @@ CREATE POLICY "Public profiles are viewable by everyone"
 CREATE POLICY "Users can insert their own profile"
   ON public.profiles FOR INSERT
   WITH CHECK (
-    clerk_id = public.current_user_clerk_id()
+    (clerk_id = public.current_user_clerk_id() AND role = 'user')
     OR public.is_admin()
   );
 
@@ -455,6 +455,9 @@ CREATE INDEX IF NOT EXISTS idx_profiles_clerk_id_lookup ON public.profiles (cler
 
 
 -- ============================================================
+
+
+-- ============================================================
 -- MIGRATION 6: INSTRUCTOR-REQUESTED FEATURES (HARDENED)
 -- ============================================================
 
@@ -466,10 +469,11 @@ CREATE INDEX IF NOT EXISTS idx_profiles_clerk_id_lookup ON public.profiles (cler
 -- 1. Dog video upload columns & private dog-videos storage bucket
 -- 2. Household & family background suitability screening tables (applicant & admin reviews separated)
 -- 3. Monthly post-adoption monitoring schedules & welfare reports (adopter & admin reviews separated)
+-- 4. Database-level role protection, video path integrity & relational ownership guards
 -- ============================================================
 
 -- ------------------------------------------------------------
--- 0. PREREQUISITE FUNCTIONS (Clerk Third-Party Auth & Security Helpers)
+-- 0. PREREQUISITE FUNCTIONS & SECURITY CONTROLS (Clerk Third-Party Auth & Security Helpers)
 -- ------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.current_user_clerk_id()
 RETURNS TEXT AS $$
@@ -501,12 +505,54 @@ END;
 $$ LANGUAGE plpgsql
 SET search_path = public, pg_catalog;
 
+-- Prevent non-admins from self-assigning or elevating administrative role in profiles
+CREATE OR REPLACE FUNCTION protect_profile_role()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NOT public.is_admin() THEN
+    IF NEW.role != 'user' THEN
+      RAISE EXCEPTION 'Non-admin users cannot assign or elevate administrative role.';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_catalog;
+
+DROP TRIGGER IF EXISTS trg_protect_profile_role ON public.profiles;
+CREATE TRIGGER trg_protect_profile_role
+  BEFORE INSERT OR UPDATE ON public.profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION protect_profile_role();
+
 -- ------------------------------------------------------------
--- 1. EXTEND DOGS TABLE FOR VIDEO SUPPORT
+-- 1. EXTEND DOGS TABLE FOR VIDEO SUPPORT & INTEGRITY CONTROLS
 -- ------------------------------------------------------------
 ALTER TABLE public.dogs
   ADD COLUMN IF NOT EXISTS video_url TEXT,
   ADD COLUMN IF NOT EXISTS video_storage_path TEXT;
+
+-- Prevent users from hijacking another user's storage path on dog records
+CREATE OR REPLACE FUNCTION protect_dog_video_path()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NOT public.is_admin() THEN
+    IF NEW.video_storage_path IS NOT NULL AND length(trim(NEW.video_storage_path)) > 0 THEN
+      IF NOT (NEW.video_storage_path LIKE 'dogs/' || NEW.owner_id || '/%') THEN
+        RAISE EXCEPTION 'video_storage_path must reside within the owner''s authorized folder: dogs/%/', NEW.owner_id;
+      END IF;
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_catalog;
+
+DROP TRIGGER IF EXISTS trg_protect_dog_video_path ON public.dogs;
+CREATE TRIGGER trg_protect_dog_video_path
+  BEFORE INSERT OR UPDATE ON public.dogs
+  FOR EACH ROW
+  EXECUTE FUNCTION protect_dog_video_path();
 
 -- ------------------------------------------------------------
 -- 2. STORAGE CONFIGURATION FOR DOG VIDEOS (50MB, MP4 & WebM, Private)
@@ -629,6 +675,40 @@ CREATE TRIGGER set_household_screenings_updated_at
   BEFORE UPDATE ON public.household_screenings
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+-- Verify household screening ownership matches the referenced adoption application
+CREATE OR REPLACE FUNCTION validate_household_screening_ownership()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_app_applicant_id TEXT;
+  v_app_dog_id UUID;
+BEGIN
+  SELECT applicant_id, dog_id INTO v_app_applicant_id, v_app_dog_id
+  FROM public.adoption_applications
+  WHERE id = NEW.application_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Referenced adoption application does not exist.';
+  END IF;
+
+  IF NEW.applicant_id != v_app_applicant_id THEN
+    RAISE EXCEPTION 'Screening applicant_id must match the applicant on the adoption application.';
+  END IF;
+
+  IF NEW.dog_id != v_app_dog_id THEN
+    RAISE EXCEPTION 'Screening dog_id must match the dog on the adoption application.';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_catalog;
+
+DROP TRIGGER IF EXISTS trg_validate_household_screening_ownership ON public.household_screenings;
+CREATE TRIGGER trg_validate_household_screening_ownership
+  BEFORE INSERT OR UPDATE ON public.household_screenings
+  FOR EACH ROW
+  EXECUTE FUNCTION validate_household_screening_ownership();
 
 -- RLS for household_screenings
 ALTER TABLE public.household_screenings ENABLE ROW LEVEL SECURITY;
@@ -780,6 +860,45 @@ CREATE TRIGGER set_post_adoption_followups_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+-- Verify follow-up ownership and application completion status
+CREATE OR REPLACE FUNCTION validate_post_adoption_followup_ownership()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_app_applicant_id TEXT;
+  v_app_dog_id UUID;
+  v_app_status TEXT;
+BEGIN
+  SELECT applicant_id, dog_id, status INTO v_app_applicant_id, v_app_dog_id, v_app_status
+  FROM public.adoption_applications
+  WHERE id = NEW.application_id;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Referenced adoption application does not exist.';
+  END IF;
+
+  IF NEW.adopter_id != v_app_applicant_id THEN
+    RAISE EXCEPTION 'Follow-up adopter_id must match the applicant on the adoption application.';
+  END IF;
+
+  IF NEW.dog_id != v_app_dog_id THEN
+    RAISE EXCEPTION 'Follow-up dog_id must match the dog on the adoption application.';
+  END IF;
+
+  IF v_app_status NOT IN ('approved', 'completed') THEN
+    RAISE EXCEPTION 'Follow-up schedules can only be established for approved or completed adoption applications.';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_catalog;
+
+DROP TRIGGER IF EXISTS trg_validate_post_adoption_followup_ownership ON public.post_adoption_followups;
+CREATE TRIGGER trg_validate_post_adoption_followup_ownership
+  BEFORE INSERT OR UPDATE ON public.post_adoption_followups
+  FOR EACH ROW
+  EXECUTE FUNCTION validate_post_adoption_followup_ownership();
+
 -- RLS for post_adoption_followups
 ALTER TABLE public.post_adoption_followups ENABLE ROW LEVEL SECURITY;
 
@@ -885,6 +1004,13 @@ BEGIN
 
     IF NEW.living_environment IS NULL OR length(trim(NEW.living_environment)) = 0 THEN
       RAISE EXCEPTION 'Living environment details are required.';
+    END IF;
+
+    -- 6. Prevent tampering with photo_storage_path outside the adopter's folder
+    IF NEW.photo_storage_path IS NOT NULL AND length(trim(NEW.photo_storage_path)) > 0 THEN
+      IF NOT (NEW.photo_storage_path LIKE 'dogs/' || NEW.adopter_id || '/%' OR NEW.photo_storage_path LIKE 'followups/' || NEW.adopter_id || '/%') THEN
+        RAISE EXCEPTION 'photo_storage_path must belong to the adopter folder.';
+      END IF;
     END IF;
   END IF;
   RETURN NEW;
