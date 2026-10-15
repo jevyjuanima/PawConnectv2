@@ -141,6 +141,18 @@ export async function submitFollowUpReportAction(
       };
     }
 
+    if (parsed.data.photo_storage_path) {
+      if (
+        !parsed.data.photo_storage_path.startsWith(`dogs/${userId}/`) &&
+        !parsed.data.photo_storage_path.startsWith(`followups/${userId}/`)
+      ) {
+        return {
+          success: false,
+          error: "Unauthorized photo storage path: must belong to the adopter",
+        };
+      }
+    }
+
     const updatePayload = {
       submitted_at: new Date().toISOString(),
       general_health: parsed.data.general_health,

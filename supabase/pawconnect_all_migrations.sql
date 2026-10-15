@@ -458,6 +458,9 @@ CREATE INDEX IF NOT EXISTS idx_profiles_clerk_id_lookup ON public.profiles (cler
 
 
 -- ============================================================
+
+
+-- ============================================================
 -- MIGRATION 6: INSTRUCTOR-REQUESTED FEATURES (HARDENED)
 -- ============================================================
 
@@ -505,13 +508,24 @@ END;
 $$ LANGUAGE plpgsql
 SET search_path = public, pg_catalog;
 
--- Prevent non-admins from self-assigning or elevating administrative role in profiles
+-- Prevent users from elevating their role, changing another user's profile, or modifying admin roles
 CREATE OR REPLACE FUNCTION protect_profile_role()
 RETURNS TRIGGER AS $$
 BEGIN
   IF NOT public.is_admin() THEN
+    -- Non-admins cannot modify another user's identity or clerk_id
+    IF TG_OP = 'UPDATE' AND (NEW.clerk_id IS DISTINCT FROM OLD.clerk_id OR NEW.id IS DISTINCT FROM OLD.id) THEN
+      RAISE EXCEPTION 'Cannot modify identity fields on profile.';
+    END IF;
+
+    -- Non-admins cannot assign or elevate role to admin
     IF NEW.role != 'user' THEN
       RAISE EXCEPTION 'Non-admin users cannot assign or elevate administrative role.';
+    END IF;
+
+    -- Non-admins cannot demote or alter an existing administrator profile
+    IF TG_OP = 'UPDATE' AND OLD.role = 'admin' THEN
+      RAISE EXCEPTION 'Only administrators can modify an administrator profile.';
     END IF;
   END IF;
   RETURN NEW;
