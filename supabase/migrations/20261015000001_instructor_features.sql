@@ -38,15 +38,15 @@ DROP POLICY IF EXISTS "Authenticated users can upload dog videos" ON storage.obj
 DROP POLICY IF EXISTS "Owners or admin can update dog videos" ON storage.objects;
 DROP POLICY IF EXISTS "Owners or admin can delete dog videos" ON storage.objects;
 
--- Only authenticated users who own the dog or are admins, or anyone accessing an approved dog via signed URL
+-- Only authenticated users who own the video path, or admins, or viewers of an approved dog can read
 CREATE POLICY "Authorized users can read dog videos"
   ON storage.objects FOR SELECT
   TO authenticated
   USING (
     bucket_id = 'dog-videos'
     AND (
-      owner = auth.uid()
-      OR public.is_admin()
+      public.is_admin()
+      OR storage.objects.name LIKE 'dogs/' || public.current_user_clerk_id() || '/%'
       OR EXISTS (
         SELECT 1 FROM public.dogs
         WHERE dogs.video_storage_path = storage.objects.name
@@ -61,6 +61,10 @@ CREATE POLICY "Authenticated users can upload dog videos"
   WITH CHECK (
     bucket_id = 'dog-videos'
     AND (LOWER(storage.extension(name)) IN ('mp4', 'webm'))
+    AND (
+      public.is_admin()
+      OR storage.objects.name LIKE 'dogs/' || public.current_user_clerk_id() || '/%'
+    )
   );
 
 CREATE POLICY "Owners or admin can update dog videos"
@@ -68,7 +72,10 @@ CREATE POLICY "Owners or admin can update dog videos"
   TO authenticated
   USING (
     bucket_id = 'dog-videos'
-    AND (owner = auth.uid() OR public.is_admin())
+    AND (
+      public.is_admin()
+      OR storage.objects.name LIKE 'dogs/' || public.current_user_clerk_id() || '/%'
+    )
   );
 
 CREATE POLICY "Owners or admin can delete dog videos"
@@ -76,8 +83,20 @@ CREATE POLICY "Owners or admin can delete dog videos"
   TO authenticated
   USING (
     bucket_id = 'dog-videos'
-    AND (owner = auth.uid() OR public.is_admin())
+    AND (
+      public.is_admin()
+      OR storage.objects.name LIKE 'dogs/' || public.current_user_clerk_id() || '/%'
+    )
   );
+
+-- Ensure updated_at trigger function exists
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
 -- ------------------------------------------------------------
 -- 3. HOUSEHOLD & FAMILY BACKGROUND SUITABILITY SCREENING
