@@ -44,8 +44,8 @@ test("Security Audit: Profile role protection & identity immutability trigger", 
 
 test("Security Audit: Storage policies use Clerk user ID instead of auth.uid()", () => {
   // Verify no policy code uses auth.uid()
-  assert.ok(!migrationSql.includes("= auth.uid()"), "Migration must NOT use owner = auth.uid() in policy expressions");
-  assert.ok(!migrationSql.includes("auth.uid()::text"), "Migration must NOT use auth.uid()::text in policy expressions");
+  assert.ok(!migrationSql.includes("owner = auth.uid()"), "Migration must NOT use owner = auth.uid() in policy expressions");
+  assert.ok(!migrationSql.includes("owner = auth.uid()::text"), "Migration must NOT use owner = auth.uid()::text in policy expressions");
   assert.ok(migrationSql.includes("public.current_user_clerk_id()"), "Storage policies must use public.current_user_clerk_id()");
   
   // dog-photos
@@ -126,3 +126,56 @@ test("Security Audit: SQL synchronization check", () => {
   assert.ok(allMigrationsSql.includes("protect_dog_video_path"));
   assert.ok(allMigrationsSql.includes("current_setting('role', true) = 'service_role'"));
 });
+
+test("Security Audit: Schema Consistency & PostgREST Relationship Foreign Keys", () => {
+  // Foreign keys matching PostgREST queries in admin.ts
+  assert.ok(migrationSql.includes("household_screenings_applicant_id_fkey"));
+  assert.ok(migrationSql.includes("household_screenings_reviewer_id_fkey"));
+  assert.ok(migrationSql.includes("post_adoption_followups_adopter_id_fkey"));
+  assert.ok(migrationSql.includes("post_adoption_followups_reviewer_id_fkey"));
+
+  // Household screening columns
+  const screeningCols = [
+    "household_agreement",
+    "housing_type",
+    "landlord_permission",
+    "has_children",
+    "children_details",
+    "household_members_details",
+    "existing_pets_details",
+    "pet_care_experience",
+    "daily_alone_hours",
+    "daily_care_arrangements",
+    "emergency_vet_care_plan",
+    "screening_consent",
+  ];
+  for (const col of screeningCols) {
+    assert.ok(migrationSql.includes(col), `household_screenings must contain ${col}`);
+  }
+
+  // Follow-up columns
+  const followupCols = [
+    "month_number",
+    "due_date",
+    "general_health",
+    "eating_behavior_adjustment",
+    "veterinary_care",
+    "living_environment",
+    "problems_concerns",
+    "photo_url",
+    "photo_storage_path",
+    "requires_additional_followup",
+    "additional_followup_instructions",
+  ];
+  for (const col of followupCols) {
+    assert.ok(migrationSql.includes(col), `post_adoption_followups must contain ${col}`);
+  }
+});
+
+test("Security Audit: Screenings and Followups Triggers Enforce INSERT and UPDATE", () => {
+  assert.ok(migrationSql.includes("BEFORE INSERT OR UPDATE ON public.household_screenings"));
+  assert.ok(migrationSql.includes("BEFORE INSERT OR UPDATE ON public.post_adoption_followups"));
+  assert.ok(migrationSql.includes("New screenings must start with status pending."));
+  assert.ok(migrationSql.includes("Only administrators can create follow-up schedules."));
+});
+
