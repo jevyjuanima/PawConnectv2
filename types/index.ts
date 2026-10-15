@@ -87,10 +87,20 @@ export interface HouseholdScreeningRecord {
   updated_at: string;
 }
 
+export interface HouseholdScreeningReviewRecord {
+  id: string;
+  screening_id: string;
+  reviewer_id: string;
+  admin_notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface HouseholdScreeningWithDetails extends HouseholdScreeningRecord {
   dog?: DogWithImages;
   applicant?: ProfileRecord;
   reviewer?: ProfileRecord;
+  review?: HouseholdScreeningReviewRecord;
 }
 
 export interface AdoptionApplicationRecord {
@@ -142,11 +152,23 @@ export interface PostAdoptionFollowupRecord {
   updated_at: string;
 }
 
+export interface PostAdoptionFollowupReviewRecord {
+  id: string;
+  followup_id: string;
+  reviewer_id: string;
+  admin_notes: string | null;
+  requires_additional_followup: boolean;
+  additional_followup_instructions: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface FollowupWithDetails extends PostAdoptionFollowupRecord {
   dog?: DogWithImages;
   adopter?: ProfileRecord;
   reviewer?: ProfileRecord;
   application?: AdoptionApplicationRecord;
+  review?: PostAdoptionFollowupReviewRecord;
 }
 
 export interface NotificationRecord {

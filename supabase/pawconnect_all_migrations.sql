@@ -441,18 +441,32 @@ CREATE INDEX IF NOT EXISTS idx_profiles_clerk_id_lookup ON public.profiles (cler
 
 
 -- ============================================================
--- MIGRATION 6: INSTRUCTOR-REQUESTED FEATURES
--- 1. Dog video upload columns & dog-videos storage bucket
--- 2. Household & family background suitability screening table & RLS
--- 3. Monthly post-adoption monitoring schedules & reports table & RLS
+
+
+-- ============================================================
+-- MIGRATION 6: INSTRUCTOR-REQUESTED FEATURES (HARDENED)
 -- ============================================================
 
+-- ============================================================
+-- PAWCONNECT MIGRATION: INSTRUCTOR-REQUESTED FEATURES (HARDENED)
+-- Migration: 20261015000001_instructor_features.sql
+--
+-- Features implemented:
+-- 1. Dog video upload columns & private dog-videos storage bucket
+-- 2. Household & family background suitability screening tables (applicant & admin reviews separated)
+-- 3. Monthly post-adoption monitoring schedules & welfare reports (adopter & admin reviews separated)
+-- ============================================================
+
+-- ------------------------------------------------------------
 -- 1. EXTEND DOGS TABLE FOR VIDEO SUPPORT
+-- ------------------------------------------------------------
 ALTER TABLE public.dogs
   ADD COLUMN IF NOT EXISTS video_url TEXT,
   ADD COLUMN IF NOT EXISTS video_storage_path TEXT;
 
+-- ------------------------------------------------------------
 -- 2. STORAGE CONFIGURATION FOR DOG VIDEOS (50MB, MP4 & WebM, Private)
+-- ------------------------------------------------------------
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'dog-videos',
@@ -466,6 +480,7 @@ ON CONFLICT (id) DO UPDATE SET
   file_size_limit = 52428800,
   allowed_mime_types = ARRAY['video/mp4', 'video/webm'];
 
+-- Storage Policies for dog-videos
 DROP POLICY IF EXISTS "Public read dog videos" ON storage.objects;
 DROP POLICY IF EXISTS "Authorized users can read dog videos" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated users can upload dog videos" ON storage.objects;
@@ -523,7 +538,18 @@ CREATE POLICY "Owners or admin can delete dog videos"
     )
   );
 
+-- Ensure updated_at trigger function exists
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ------------------------------------------------------------
 -- 3. HOUSEHOLD & FAMILY BACKGROUND SUITABILITY SCREENING
+-- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.household_screenings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   application_id UUID UNIQUE NOT NULL REFERENCES public.adoption_applications(id) ON DELETE CASCADE,
@@ -545,10 +571,9 @@ CREATE TABLE IF NOT EXISTS public.household_screenings (
   emergency_vet_care_plan TEXT NOT NULL,
   screening_consent BOOLEAN NOT NULL DEFAULT false,
   
-  -- Staff Review & Administrative Record
+  -- Staff Review Outcome (visible to applicant)
   reviewer_id TEXT REFERENCES public.profiles(clerk_id),
   reviewed_at TIMESTAMPTZ,
-  admin_notes TEXT,
   rejection_reason TEXT,
   
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -565,32 +590,85 @@ CREATE OR REPLACE TRIGGER set_household_screenings_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+-- RLS for household_screenings
 ALTER TABLE public.household_screenings ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Applicants or admin can view screening records" ON public.household_screenings;
 DROP POLICY IF EXISTS "Applicants can submit screening" ON public.household_screenings;
+DROP POLICY IF EXISTS "Applicants can submit pending screening" ON public.household_screenings;
 DROP POLICY IF EXISTS "Admins can update screening" ON public.household_screenings;
+DROP POLICY IF EXISTS "Only admins can update screening" ON public.household_screenings;
+DROP POLICY IF EXISTS "Only admins can delete screening" ON public.household_screenings;
 
 CREATE POLICY "Applicants or admin can view screening records"
   ON public.household_screenings FOR SELECT
+  TO authenticated
   USING (
     applicant_id = public.current_user_clerk_id()
     OR public.is_admin()
   );
 
-CREATE POLICY "Applicants can submit screening"
+-- Hardened INSERT: Applicants can ONLY insert with status = 'pending' and NULL reviewer fields
+CREATE POLICY "Applicants can submit pending screening"
   ON public.household_screenings FOR INSERT
+  TO authenticated
   WITH CHECK (
-    applicant_id = public.current_user_clerk_id()
+    (
+      applicant_id = public.current_user_clerk_id()
+      AND status = 'pending'
+      AND reviewer_id IS NULL
+      AND reviewed_at IS NULL
+      AND rejection_reason IS NULL
+    )
     OR public.is_admin()
   );
 
-CREATE POLICY "Admins can update screening"
+-- Only admins can update status or review decisions
+CREATE POLICY "Only admins can update screening"
   ON public.household_screenings FOR UPDATE
+  TO authenticated
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
--- 4. MONTHLY POST-ADOPTION MONITORING SCHEDULES & WELFARE REPORTS
+CREATE POLICY "Only admins can delete screening"
+  ON public.household_screenings FOR DELETE
+  TO authenticated
+  USING (public.is_admin());
+
+-- ------------------------------------------------------------
+-- 4. PRIVATE HOUSEHOLD SCREENING ADMIN REVIEWS (Separated for column privacy)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.household_screening_reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  screening_id UUID UNIQUE NOT NULL REFERENCES public.household_screenings(id) ON DELETE CASCADE,
+  reviewer_id TEXT NOT NULL REFERENCES public.profiles(clerk_id) ON DELETE CASCADE,
+  admin_notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_screening_reviews_screening_id ON public.household_screening_reviews(screening_id);
+
+CREATE OR REPLACE TRIGGER set_household_screening_reviews_updated_at
+  BEFORE UPDATE ON public.household_screening_reviews
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE public.household_screening_reviews ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Only admins can access screening reviews" ON public.household_screening_reviews;
+
+-- Strict admin-only access: normal applicants cannot select, insert, update, or delete
+CREATE POLICY "Only admins can access screening reviews"
+  ON public.household_screening_reviews
+  FOR ALL
+  TO authenticated
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
+
+-- ------------------------------------------------------------
+-- 5. MONTHLY POST-ADOPTION MONITORING SCHEDULES & WELFARE REPORTS
+-- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.post_adoption_followups (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   application_id UUID NOT NULL REFERENCES public.adoption_applications(id) ON DELETE CASCADE,
@@ -610,10 +688,9 @@ CREATE TABLE IF NOT EXISTS public.post_adoption_followups (
   photo_url TEXT,
   photo_storage_path TEXT,
   
-  -- Staff Review & Monitoring Actions
+  -- Staff Review Outcome (visible to adopter)
   reviewer_id TEXT REFERENCES public.profiles(clerk_id),
   reviewed_at TIMESTAMPTZ,
-  admin_notes TEXT,
   requires_additional_followup BOOLEAN DEFAULT false,
   additional_followup_instructions TEXT,
   
@@ -635,34 +712,95 @@ CREATE OR REPLACE TRIGGER set_post_adoption_followups_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+-- RLS for post_adoption_followups
 ALTER TABLE public.post_adoption_followups ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Adopters or admin can view followups" ON public.post_adoption_followups;
 DROP POLICY IF EXISTS "Admin or system can create followups" ON public.post_adoption_followups;
+DROP POLICY IF EXISTS "Only admin can create followups" ON public.post_adoption_followups;
 DROP POLICY IF EXISTS "Adopters or admin can update followups" ON public.post_adoption_followups;
+DROP POLICY IF EXISTS "Adopters can submit report for own scheduled followups" ON public.post_adoption_followups;
+DROP POLICY IF EXISTS "Only admins can delete followups" ON public.post_adoption_followups;
 
 CREATE POLICY "Adopters or admin can view followups"
   ON public.post_adoption_followups FOR SELECT
+  TO authenticated
   USING (
     adopter_id = public.current_user_clerk_id()
     OR public.is_admin()
   );
 
-CREATE POLICY "Admin or system can create followups"
+-- Hardened INSERT: Normal users CANNOT create followups. Only admin workflow can create schedule.
+CREATE POLICY "Only admin can create followups"
   ON public.post_adoption_followups FOR INSERT
-  WITH CHECK (
-    auth.jwt() IS NOT NULL
-    OR public.is_admin()
-  );
+  TO authenticated
+  WITH CHECK (public.is_admin());
 
-CREATE POLICY "Adopters or admin can update followups"
+-- Hardened UPDATE: Adopters can only submit reports for their own upcoming/due/needs_follow_up followups.
+CREATE POLICY "Adopters can submit report for own scheduled followups"
   ON public.post_adoption_followups FOR UPDATE
+  TO authenticated
   USING (
-    adopter_id = public.current_user_clerk_id()
+    (
+      adopter_id = public.current_user_clerk_id()
+      AND status IN ('upcoming', 'due', 'needs_follow_up')
+    )
     OR public.is_admin()
   )
   WITH CHECK (
-    adopter_id = public.current_user_clerk_id()
+    (
+      adopter_id = public.current_user_clerk_id()
+      AND status = 'submitted'
+      AND reviewer_id IS NULL
+      AND reviewed_at IS NULL
+    )
     OR public.is_admin()
   );
+
+CREATE POLICY "Only admins can delete followups"
+  ON public.post_adoption_followups FOR DELETE
+  TO authenticated
+  USING (public.is_admin());
+
+-- ------------------------------------------------------------
+-- 6. PRIVATE POST-ADOPTION FOLLOW-UP ADMIN REVIEWS (Separated for column privacy)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.post_adoption_followup_reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  followup_id UUID UNIQUE NOT NULL REFERENCES public.post_adoption_followups(id) ON DELETE CASCADE,
+  reviewer_id TEXT NOT NULL REFERENCES public.profiles(clerk_id) ON DELETE CASCADE,
+  admin_notes TEXT,
+  requires_additional_followup BOOLEAN DEFAULT false,
+  additional_followup_instructions TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_followup_reviews_followup_id ON public.post_adoption_followup_reviews(followup_id);
+
+CREATE OR REPLACE TRIGGER set_post_adoption_followup_reviews_updated_at
+  BEFORE UPDATE ON public.post_adoption_followup_reviews
+  FOR EACH ROW
+  EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE public.post_adoption_followup_reviews ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Only admins can access followup reviews" ON public.post_adoption_followup_reviews;
+
+-- Strict admin-only access: normal adopters cannot select, insert, update, or delete
+CREATE POLICY "Only admins can access followup reviews"
+  ON public.post_adoption_followup_reviews
+  FOR ALL
+  TO authenticated
+  USING (public.is_admin())
+  WITH CHECK (public.is_admin());
+
+-- ------------------------------------------------------------
+-- TABLE PERMISSIONS / GRANTS (Instructor Features)
+-- ------------------------------------------------------------
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.household_screenings TO authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.household_screening_reviews TO authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.post_adoption_followups TO authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.post_adoption_followup_reviews TO authenticated, service_role;
+
 

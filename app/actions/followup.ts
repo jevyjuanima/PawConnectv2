@@ -119,6 +119,10 @@ export async function submitFollowUpReportAction(
       return { success: false, error: "You can only submit reports for your own adopted dogs" };
     }
 
+    if (followup.status === FOLLOWUP_STATUSES.REVIEWED) {
+      return { success: false, error: "This monthly report has already been reviewed by staff" };
+    }
+
     const updatePayload = {
       submitted_at: new Date().toISOString(),
       general_health: parsed.data.general_health,

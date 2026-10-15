@@ -666,7 +666,10 @@ async function schedulePostAdoptionFollowups(
       });
     }
 
-    await supabase.from("post_adoption_followups").insert(records);
+    await supabase.from("post_adoption_followups").upsert(records, {
+      onConflict: "application_id,month_number",
+      ignoreDuplicates: true,
+    });
 
     // Notification to adopter
     await supabase.from("notifications").insert({
@@ -714,6 +717,23 @@ export async function getAdminScreeningsAction(
       return { success: true, data: [] };
     }
 
+    // Fetch private admin reviews safely from dedicated review table
+    let reviewsMap: Record<string, string | null> = {};
+    try {
+      const screeningIds = (data || []).map((s) => s.id);
+      if (screeningIds.length > 0) {
+        const { data: revs } = await supabase
+          .from("household_screening_reviews")
+          .select("screening_id, admin_notes")
+          .in("screening_id", screeningIds);
+        if (revs) {
+          reviewsMap = Object.fromEntries(revs.map((r) => [r.screening_id, r.admin_notes]));
+        }
+      }
+    } catch {
+      // Graceful fallback if review table is not yet migrated
+    }
+
     const screenings: HouseholdScreeningWithDetails[] = (data || []).map((row) => {
       const dogData = row.dogs;
       const images = dogData?.dog_images || [];
@@ -723,6 +743,7 @@ export async function getAdminScreeningsAction(
 
       return {
         ...row,
+        admin_notes: reviewsMap[row.id] ?? (row as Record<string, unknown>).admin_notes ?? null,
         dog: {
           ...dogData,
           images,
@@ -779,7 +800,6 @@ export async function reviewScreeningAction(
       updated_at: new Date().toISOString(),
     };
 
-    if (adminNotes !== undefined) updatePayload.admin_notes = adminNotes.trim() || null;
     if (rejectionReason !== undefined) updatePayload.rejection_reason = rejectionReason.trim() || null;
 
     const { error: updateErr } = await supabase
@@ -789,6 +809,22 @@ export async function reviewScreeningAction(
 
     if (updateErr) {
       return { success: false, error: updateErr.message };
+    }
+
+    // Save private admin notes to separate admin-only table to prevent PostgREST column leaks
+    if (adminNotes !== undefined) {
+      try {
+        await supabase
+          .from("household_screening_reviews")
+          .upsert({
+            screening_id: screeningId,
+            admin_notes: adminNotes.trim() || null,
+            reviewed_by: userId,
+            updated_at: new Date().toISOString(),
+          });
+      } catch (revErr) {
+        console.error("Admin screening review notes persist note:", revErr);
+      }
     }
 
     // Notify applicant
@@ -860,6 +896,30 @@ export async function getAdminFollowupsAction(
       return { success: true, data: [] };
     }
 
+    // Fetch private admin reviews safely from dedicated review table
+    let followupReviewsMap: Record<
+      string,
+      {
+        admin_notes?: string | null;
+        requires_additional_followup?: boolean;
+        additional_followup_instructions?: string | null;
+      }
+    > = {};
+    try {
+      const followupIds = (data || []).map((f) => f.id);
+      if (followupIds.length > 0) {
+        const { data: revs } = await supabase
+          .from("post_adoption_followup_reviews")
+          .select("followup_id, admin_notes, requires_additional_followup, additional_followup_instructions")
+          .in("followup_id", followupIds);
+        if (revs) {
+          followupReviewsMap = Object.fromEntries(revs.map((r) => [r.followup_id, r]));
+        }
+      }
+    } catch {
+      // Graceful fallback if review table is not yet migrated
+    }
+
     const today = new Date().toISOString().split("T")[0];
     const followups: FollowupWithDetails[] = (data || []).map((row) => {
       const dogData = row.dogs;
@@ -874,9 +934,18 @@ export async function getAdminFollowupsAction(
         displayStatus = FOLLOWUP_STATUSES.DUE;
       }
 
+      const rev = followupReviewsMap[row.id];
+
       return {
         ...row,
         status: displayStatus,
+        admin_notes: rev?.admin_notes ?? (row as Record<string, unknown>).admin_notes ?? null,
+        requires_additional_followup:
+          rev?.requires_additional_followup ?? (row as Record<string, unknown>).requires_additional_followup ?? false,
+        additional_followup_instructions:
+          rev?.additional_followup_instructions ??
+          (row as Record<string, unknown>).additional_followup_instructions ??
+          null,
         dog: {
           ...dogData,
           images,
@@ -927,14 +996,8 @@ export async function reviewFollowupAction(
       status,
       reviewer_id: userId,
       reviewed_at: new Date().toISOString(),
-      requires_additional_followup: requiresAdditional ?? (status === FOLLOWUP_STATUSES.NEEDS_FOLLOW_UP),
       updated_at: new Date().toISOString(),
     };
-
-    if (adminNotes !== undefined) updatePayload.admin_notes = adminNotes.trim() || null;
-    if (additionalInstructions !== undefined) {
-      updatePayload.additional_followup_instructions = additionalInstructions.trim() || null;
-    }
 
     const { error: updateErr } = await supabase
       .from("post_adoption_followups")
@@ -943,6 +1006,25 @@ export async function reviewFollowupAction(
 
     if (updateErr) {
       return { success: false, error: updateErr.message };
+    }
+
+    // Save private admin notes and instructions into dedicated admin-only review table
+    if (adminNotes !== undefined || requiresAdditional !== undefined || additionalInstructions !== undefined) {
+      try {
+        await supabase
+          .from("post_adoption_followup_reviews")
+          .upsert({
+            followup_id: followupId,
+            admin_notes: adminNotes !== undefined ? (adminNotes.trim() || null) : null,
+            requires_additional_followup: requiresAdditional ?? (status === FOLLOWUP_STATUSES.NEEDS_FOLLOW_UP),
+            additional_followup_instructions:
+              additionalInstructions !== undefined ? (additionalInstructions.trim() || null) : null,
+            reviewed_by: userId,
+            updated_at: new Date().toISOString(),
+          });
+      } catch (revErr) {
+        console.error("Admin follow-up review notes persist note:", revErr);
+      }
     }
 
     // Notify adopter
