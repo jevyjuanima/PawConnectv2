@@ -14,7 +14,8 @@
 CREATE OR REPLACE FUNCTION public.current_user_clerk_id()
 RETURNS TEXT AS $$
   SELECT COALESCE(auth.jwt() ->> 'sub', '');
-$$ LANGUAGE sql STABLE;
+$$ LANGUAGE sql STABLE
+SET search_path = public, pg_catalog;
 
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN AS $$
@@ -23,7 +24,8 @@ RETURNS BOOLEAN AS $$
     WHERE clerk_id = (auth.jwt() ->> 'sub')
       AND role = 'admin'
   );
-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+$$ LANGUAGE sql SECURITY DEFINER STABLE
+SET search_path = public, pg_catalog;
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -31,7 +33,8 @@ BEGIN
   NEW.updated_at = now();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql
+SET search_path = public, pg_catalog;
 
 -- ------------------------------------------------------------
 -- 1. EXTEND DOGS TABLE FOR VIDEO SUPPORT
@@ -114,15 +117,6 @@ CREATE POLICY "Owners or admin can delete dog videos"
     )
   );
 
--- Ensure updated_at trigger function exists
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
 -- ------------------------------------------------------------
 -- 3. HOUSEHOLD & FAMILY BACKGROUND SUITABILITY SCREENING
 -- ------------------------------------------------------------
@@ -156,12 +150,13 @@ CREATE TABLE IF NOT EXISTS public.household_screenings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_screenings_application_id ON public.household_screenings(application_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_uq_screenings_application_id ON public.household_screenings(application_id);
 CREATE INDEX IF NOT EXISTS idx_screenings_applicant_id ON public.household_screenings(applicant_id);
 CREATE INDEX IF NOT EXISTS idx_screenings_status ON public.household_screenings(status);
 CREATE INDEX IF NOT EXISTS idx_screenings_dog_id ON public.household_screenings(dog_id);
 
-CREATE OR REPLACE TRIGGER set_household_screenings_updated_at
+DROP TRIGGER IF EXISTS set_household_screenings_updated_at ON public.household_screenings;
+CREATE TRIGGER set_household_screenings_updated_at
   BEFORE UPDATE ON public.household_screenings
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
@@ -228,14 +223,14 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_catalog;
 
 DROP TRIGGER IF EXISTS trg_protect_household_screening_fields ON public.household_screenings;
 CREATE TRIGGER trg_protect_household_screening_fields
   BEFORE UPDATE ON public.household_screenings
   FOR EACH ROW
   EXECUTE FUNCTION protect_household_screening_fields();
-
 
 -- ------------------------------------------------------------
 -- 4. PRIVATE HOUSEHOLD SCREENING ADMIN REVIEWS (Separated for column privacy)
@@ -249,9 +244,10 @@ CREATE TABLE IF NOT EXISTS public.household_screening_reviews (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_screening_reviews_screening_id ON public.household_screening_reviews(screening_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_uq_screening_reviews_screening_id ON public.household_screening_reviews(screening_id);
 
-CREATE OR REPLACE TRIGGER set_household_screening_reviews_updated_at
+DROP TRIGGER IF EXISTS set_household_screening_reviews_updated_at ON public.household_screening_reviews;
+CREATE TRIGGER set_household_screening_reviews_updated_at
   BEFORE UPDATE ON public.household_screening_reviews
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
@@ -299,17 +295,18 @@ CREATE TABLE IF NOT EXISTS public.post_adoption_followups (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   
-  -- Prevent duplicate schedules for the same application and month
   CONSTRAINT unique_app_followup_month UNIQUE (application_id, month_number)
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_uq_app_followup_month ON public.post_adoption_followups(application_id, month_number);
 CREATE INDEX IF NOT EXISTS idx_followups_application_id ON public.post_adoption_followups(application_id);
 CREATE INDEX IF NOT EXISTS idx_followups_adopter_id ON public.post_adoption_followups(adopter_id);
 CREATE INDEX IF NOT EXISTS idx_followups_dog_id ON public.post_adoption_followups(dog_id);
 CREATE INDEX IF NOT EXISTS idx_followups_status ON public.post_adoption_followups(status);
 CREATE INDEX IF NOT EXISTS idx_followups_due_date ON public.post_adoption_followups(due_date);
 
-CREATE OR REPLACE TRIGGER set_post_adoption_followups_updated_at
+DROP TRIGGER IF EXISTS set_post_adoption_followups_updated_at ON public.post_adoption_followups;
+CREATE TRIGGER set_post_adoption_followups_updated_at
   BEFORE UPDATE ON public.post_adoption_followups
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
@@ -383,14 +380,14 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_catalog;
 
 DROP TRIGGER IF EXISTS trg_protect_post_adoption_followup_fields ON public.post_adoption_followups;
 CREATE TRIGGER trg_protect_post_adoption_followup_fields
   BEFORE UPDATE ON public.post_adoption_followups
   FOR EACH ROW
   EXECUTE FUNCTION protect_post_adoption_followup_fields();
-
 
 -- ------------------------------------------------------------
 -- 6. PRIVATE POST-ADOPTION FOLLOW-UP ADMIN REVIEWS (Separated for column privacy)
@@ -406,9 +403,10 @@ CREATE TABLE IF NOT EXISTS public.post_adoption_followup_reviews (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_followup_reviews_followup_id ON public.post_adoption_followup_reviews(followup_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_uq_followup_reviews_followup_id ON public.post_adoption_followup_reviews(followup_id);
 
-CREATE OR REPLACE TRIGGER set_post_adoption_followup_reviews_updated_at
+DROP TRIGGER IF EXISTS set_post_adoption_followup_reviews_updated_at ON public.post_adoption_followup_reviews;
+CREATE TRIGGER set_post_adoption_followup_reviews_updated_at
   BEFORE UPDATE ON public.post_adoption_followup_reviews
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
@@ -432,4 +430,3 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.household_screenings TO authentic
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.household_screening_reviews TO authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.post_adoption_followups TO authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.post_adoption_followup_reviews TO authenticated, service_role;
-
