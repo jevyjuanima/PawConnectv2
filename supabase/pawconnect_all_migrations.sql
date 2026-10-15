@@ -145,17 +145,24 @@ CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON public.notifications(use
 -- 1. Helper function to check if requesting user has 'admin' role
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN AS $$
-  SELECT (
-    auth.role() = 'service_role'
-    OR (auth.jwt() ->> 'role') = 'service_role'
+BEGIN
+  -- 1. Trusted Supabase service_role connection (used exclusively by trusted server-side admin client)
+  IF (
+    current_setting('role', true) = 'service_role'
     OR current_user = 'service_role'
-    OR EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE profiles.clerk_id = (auth.jwt() ->> 'sub')
-        AND profiles.role = 'admin'
-    )
+    OR (auth.role() = 'service_role' AND (auth.jwt() ->> 'iss') = 'supabase')
+  ) THEN
+    RETURN TRUE;
+  END IF;
+
+  -- 2. Authenticated Clerk user: verify administrator role in profiles table
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE profiles.clerk_id = (auth.jwt() ->> 'sub')
+      AND profiles.role = 'admin'
   );
-$$ LANGUAGE sql SECURITY DEFINER STABLE
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE
 SET search_path = public, pg_catalog;
 
 -- 2. Helper function to get current user's clerk ID
@@ -461,6 +468,9 @@ CREATE INDEX IF NOT EXISTS idx_profiles_clerk_id_lookup ON public.profiles (cler
 
 
 -- ============================================================
+
+
+-- ============================================================
 -- MIGRATION 6: INSTRUCTOR-REQUESTED FEATURES (HARDENED)
 -- ============================================================
 
@@ -472,7 +482,7 @@ CREATE INDEX IF NOT EXISTS idx_profiles_clerk_id_lookup ON public.profiles (cler
 -- 1. Dog video upload columns & private dog-videos storage bucket
 -- 2. Household & family background suitability screening tables (applicant & admin reviews separated)
 -- 3. Monthly post-adoption monitoring schedules & welfare reports (adopter & admin reviews separated)
--- 4. Database-level role protection, video path integrity & relational ownership guards
+-- 4. Database-level role protection, storage ownership repair (Clerk-aware), and relational ownership guards
 -- ============================================================
 
 -- ------------------------------------------------------------
@@ -484,19 +494,29 @@ RETURNS TEXT AS $$
 $$ LANGUAGE sql STABLE
 SET search_path = public, pg_catalog;
 
+-- Hardened administrator check:
+-- Trusted service-role connections (server-side admin operations) cannot be forged by client JWTs.
+-- Authenticated users are verified against the profiles table.
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN AS $$
-  SELECT (
-    auth.role() = 'service_role'
-    OR (auth.jwt() ->> 'role') = 'service_role'
+BEGIN
+  -- 1. Trusted Supabase service_role connection (used exclusively by trusted server-side admin client)
+  IF (
+    current_setting('role', true) = 'service_role'
     OR current_user = 'service_role'
-    OR EXISTS (
-      SELECT 1 FROM public.profiles
-      WHERE profiles.clerk_id = (auth.jwt() ->> 'sub')
-        AND profiles.role = 'admin'
-    )
+    OR (auth.role() = 'service_role' AND (auth.jwt() ->> 'iss') = 'supabase')
+  ) THEN
+    RETURN TRUE;
+  END IF;
+
+  -- 2. Authenticated Clerk user: verify administrator role in profiles table
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE profiles.clerk_id = (auth.jwt() ->> 'sub')
+      AND profiles.role = 'admin'
   );
-$$ LANGUAGE sql SECURITY DEFINER STABLE
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE
 SET search_path = public, pg_catalog;
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -513,7 +533,7 @@ CREATE OR REPLACE FUNCTION protect_profile_role()
 RETURNS TRIGGER AS $$
 BEGIN
   IF NOT public.is_admin() THEN
-    -- Non-admins cannot modify another user's identity or clerk_id
+    -- Non-admins cannot modify another user's identity, clerk_id, or primary key
     IF TG_OP = 'UPDATE' AND (NEW.clerk_id IS DISTINCT FROM OLD.clerk_id OR NEW.id IS DISTINCT FROM OLD.id) THEN
       RAISE EXCEPTION 'Cannot modify identity fields on profile.';
     END IF;
@@ -569,8 +589,10 @@ CREATE TRIGGER trg_protect_dog_video_path
   EXECUTE FUNCTION protect_dog_video_path();
 
 -- ------------------------------------------------------------
--- 2. STORAGE CONFIGURATION FOR DOG VIDEOS (50MB, MP4 & WebM, Private)
+-- 2. STORAGE CONFIGURATION & POLICIES (Clerk-Aware Identity Matching)
 -- ------------------------------------------------------------
+
+-- A. Dog Videos Bucket (50MB, MP4 & WebM, Private)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'dog-videos',
@@ -584,7 +606,6 @@ ON CONFLICT (id) DO UPDATE SET
   file_size_limit = 52428800,
   allowed_mime_types = ARRAY['video/mp4', 'video/webm'];
 
--- Storage Policies for dog-videos
 DROP POLICY IF EXISTS "Public read dog videos" ON storage.objects;
 DROP POLICY IF EXISTS "Authorized users can read dog videos" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated users can upload dog videos" ON storage.objects;
@@ -643,6 +664,75 @@ CREATE POLICY "Owners or admin can delete dog videos"
     AND (
       public.is_admin()
       OR storage.objects.name LIKE 'dogs/' || public.current_user_clerk_id() || '/%'
+    )
+  );
+
+-- B. Dog Photos Bucket (Clerk-Aware Storage Policies: repairs auth.uid() UUID mismatch)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'dog-photos',
+  'dog-photos',
+  true,
+  5242880, -- 5MB
+  ARRAY['image/jpeg', 'image/png', 'image/webp']
+)
+ON CONFLICT (id) DO UPDATE SET
+  public = true,
+  file_size_limit = 5242880,
+  allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/webp'];
+
+DROP POLICY IF EXISTS "Public read dog photos" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can upload dog photos" ON storage.objects;
+DROP POLICY IF EXISTS "Owners or admin can update dog photos" ON storage.objects;
+DROP POLICY IF EXISTS "Owners or admin can delete dog photos" ON storage.objects;
+
+CREATE POLICY "Public read dog photos"
+  ON storage.objects FOR SELECT
+  USING (bucket_id = 'dog-photos');
+
+CREATE POLICY "Authenticated users can upload dog photos"
+  ON storage.objects FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    bucket_id = 'dog-photos'
+    AND (LOWER(storage.extension(name)) IN ('jpg', 'jpeg', 'png', 'webp'))
+    AND (
+      public.is_admin()
+      OR storage.objects.name LIKE 'dogs/' || public.current_user_clerk_id() || '/%'
+      OR storage.objects.name LIKE 'followups/' || public.current_user_clerk_id() || '/%'
+    )
+  );
+
+CREATE POLICY "Owners or admin can update dog photos"
+  ON storage.objects FOR UPDATE
+  TO authenticated
+  USING (
+    bucket_id = 'dog-photos'
+    AND (
+      public.is_admin()
+      OR storage.objects.name LIKE 'dogs/' || public.current_user_clerk_id() || '/%'
+      OR storage.objects.name LIKE 'followups/' || public.current_user_clerk_id() || '/%'
+    )
+  )
+  WITH CHECK (
+    bucket_id = 'dog-photos'
+    AND (LOWER(storage.extension(name)) IN ('jpg', 'jpeg', 'png', 'webp'))
+    AND (
+      public.is_admin()
+      OR storage.objects.name LIKE 'dogs/' || public.current_user_clerk_id() || '/%'
+      OR storage.objects.name LIKE 'followups/' || public.current_user_clerk_id() || '/%'
+    )
+  );
+
+CREATE POLICY "Owners or admin can delete dog photos"
+  ON storage.objects FOR DELETE
+  TO authenticated
+  USING (
+    bucket_id = 'dog-photos'
+    AND (
+      public.is_admin()
+      OR storage.objects.name LIKE 'dogs/' || public.current_user_clerk_id() || '/%'
+      OR storage.objects.name LIKE 'followups/' || public.current_user_clerk_id() || '/%'
     )
   );
 
