@@ -635,6 +635,32 @@ CREATE POLICY "Only admins can delete screening"
   TO authenticated
   USING (public.is_admin());
 
+-- Database-level immutability enforcement: Prevent non-admins from modifying decisions or identities
+CREATE OR REPLACE FUNCTION protect_household_screening_fields()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NOT public.is_admin() THEN
+    IF NEW.status IS DISTINCT FROM OLD.status OR
+       NEW.reviewer_id IS DISTINCT FROM OLD.reviewer_id OR
+       NEW.reviewed_at IS DISTINCT FROM OLD.reviewed_at OR
+       NEW.rejection_reason IS DISTINCT FROM OLD.rejection_reason OR
+       NEW.applicant_id IS DISTINCT FROM OLD.applicant_id OR
+       NEW.application_id IS DISTINCT FROM OLD.application_id OR
+       NEW.dog_id IS DISTINCT FROM OLD.dog_id THEN
+      RAISE EXCEPTION 'Applicants cannot modify screening review decisions or identity fields.';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_protect_household_screening_fields ON public.household_screenings;
+CREATE TRIGGER trg_protect_household_screening_fields
+  BEFORE UPDATE ON public.household_screenings
+  FOR EACH ROW
+  EXECUTE FUNCTION protect_household_screening_fields();
+
+
 -- ------------------------------------------------------------
 -- 4. PRIVATE HOUSEHOLD SCREENING ADMIN REVIEWS (Separated for column privacy)
 -- ------------------------------------------------------------
@@ -761,6 +787,34 @@ CREATE POLICY "Only admins can delete followups"
   ON public.post_adoption_followups FOR DELETE
   TO authenticated
   USING (public.is_admin());
+
+-- Database-level immutability enforcement: Prevent non-admins from modifying schedule, identity, or review fields
+CREATE OR REPLACE FUNCTION protect_post_adoption_followup_fields()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NOT public.is_admin() THEN
+    IF NEW.adopter_id IS DISTINCT FROM OLD.adopter_id OR
+       NEW.application_id IS DISTINCT FROM OLD.application_id OR
+       NEW.dog_id IS DISTINCT FROM OLD.dog_id OR
+       NEW.month_number IS DISTINCT FROM OLD.month_number OR
+       NEW.due_date IS DISTINCT FROM OLD.due_date OR
+       NEW.reviewer_id IS DISTINCT FROM OLD.reviewer_id OR
+       NEW.reviewed_at IS DISTINCT FROM OLD.reviewed_at OR
+       NEW.requires_additional_followup IS DISTINCT FROM OLD.requires_additional_followup OR
+       NEW.additional_followup_instructions IS DISTINCT FROM OLD.additional_followup_instructions THEN
+      RAISE EXCEPTION 'Adopters cannot modify administrative, schedule, or identity fields.';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_protect_post_adoption_followup_fields ON public.post_adoption_followups;
+CREATE TRIGGER trg_protect_post_adoption_followup_fields
+  BEFORE UPDATE ON public.post_adoption_followups
+  FOR EACH ROW
+  EXECUTE FUNCTION protect_post_adoption_followup_fields();
+
 
 -- ------------------------------------------------------------
 -- 6. PRIVATE POST-ADOPTION FOLLOW-UP ADMIN REVIEWS (Separated for column privacy)

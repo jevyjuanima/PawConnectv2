@@ -819,7 +819,7 @@ export async function reviewScreeningAction(
           .upsert({
             screening_id: screeningId,
             admin_notes: adminNotes.trim() || null,
-            reviewed_by: userId,
+            reviewer_id: userId,
             updated_at: new Date().toISOString(),
           });
       } catch (revErr) {
@@ -1019,7 +1019,7 @@ export async function reviewFollowupAction(
             requires_additional_followup: requiresAdditional ?? (status === FOLLOWUP_STATUSES.NEEDS_FOLLOW_UP),
             additional_followup_instructions:
               additionalInstructions !== undefined ? (additionalInstructions.trim() || null) : null,
-            reviewed_by: userId,
+            reviewer_id: userId,
             updated_at: new Date().toISOString(),
           });
       } catch (revErr) {
