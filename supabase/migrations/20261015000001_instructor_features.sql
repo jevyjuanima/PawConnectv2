@@ -16,30 +16,44 @@ ALTER TABLE public.dogs
   ADD COLUMN IF NOT EXISTS video_storage_path TEXT;
 
 -- ------------------------------------------------------------
--- 2. STORAGE CONFIGURATION FOR DOG VIDEOS (50MB, MP4 & WebM)
+-- 2. STORAGE CONFIGURATION FOR DOG VIDEOS (50MB, MP4 & WebM, Private)
 -- ------------------------------------------------------------
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'dog-videos',
   'dog-videos',
-  true,
+  false,
   52428800, -- 50MB
   ARRAY['video/mp4', 'video/webm']
 )
 ON CONFLICT (id) DO UPDATE SET
-  public = true,
+  public = false,
   file_size_limit = 52428800,
   allowed_mime_types = ARRAY['video/mp4', 'video/webm'];
 
 -- Storage Policies for dog-videos
 DROP POLICY IF EXISTS "Public read dog videos" ON storage.objects;
+DROP POLICY IF EXISTS "Authorized users can read dog videos" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated users can upload dog videos" ON storage.objects;
 DROP POLICY IF EXISTS "Owners or admin can update dog videos" ON storage.objects;
 DROP POLICY IF EXISTS "Owners or admin can delete dog videos" ON storage.objects;
 
-CREATE POLICY "Public read dog videos"
+-- Only authenticated users who own the dog or are admins, or anyone accessing an approved dog via signed URL
+CREATE POLICY "Authorized users can read dog videos"
   ON storage.objects FOR SELECT
-  USING (bucket_id = 'dog-videos');
+  TO authenticated
+  USING (
+    bucket_id = 'dog-videos'
+    AND (
+      owner = auth.uid()
+      OR public.is_admin()
+      OR EXISTS (
+        SELECT 1 FROM public.dogs
+        WHERE dogs.video_storage_path = storage.objects.name
+        AND dogs.status IN ('available', 'reserved', 'adopted')
+      )
+    )
+  );
 
 CREATE POLICY "Authenticated users can upload dog videos"
   ON storage.objects FOR INSERT

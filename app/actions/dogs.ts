@@ -106,8 +106,42 @@ export async function getDogByIdAction(
     const images = data.dog_images || [];
     const primaryImg = images.find((i: DogImageRecord) => i.is_primary)?.public_url || images[0]?.public_url;
 
+    let resolvedVideoUrl = data.video_url;
+    if (data.video_storage_path) {
+      // Access control check:
+      // Public dogs ('available', 'reserved', 'adopted') can be watched by anyone.
+      // Pending dogs can only be watched by the dog's owner or an admin.
+      const isPublic = ["available", "reserved", "adopted"].includes(data.status);
+      let canAccess = isPublic;
+      if (!canAccess) {
+        const { userId } = await auth();
+        const { isCurrentUserAdmin } = await import("@/lib/clerk/auth");
+        const isAdmin = await isCurrentUserAdmin();
+        canAccess = Boolean((userId && data.owner_id === userId) || isAdmin);
+      }
+
+      if (canAccess) {
+        try {
+          const { createAdminSupabaseClient } = await import("@/lib/supabase/admin");
+          const adminSupabase = createAdminSupabaseClient();
+          const { data: signData } = await adminSupabase.storage
+            .from("dog-videos")
+            .createSignedUrl(data.video_storage_path, 7200);
+          if (signData?.signedUrl) {
+            resolvedVideoUrl = signData.signedUrl;
+          }
+        } catch {
+          // Fallback
+        }
+      } else {
+        // Redact unpublished video URL from unauthorized viewers
+        resolvedVideoUrl = null;
+      }
+    }
+
     const dog: DogWithImages = {
       ...data,
+      video_url: resolvedVideoUrl,
       images,
       primary_image: primaryImg,
       owner: data.profiles || undefined,
@@ -151,6 +185,24 @@ export async function getUserDogsAction(): Promise<ActionResponse<DogWithImages[
         primary_image: primaryImg,
       };
     });
+
+    // Provide signed playback URLs for owner's videos
+    try {
+      const { createAdminSupabaseClient } = await import("@/lib/supabase/admin");
+      const adminSupabase = createAdminSupabaseClient();
+      for (const d of dogs) {
+        if (d.video_storage_path) {
+          const { data: signData } = await adminSupabase.storage
+            .from("dog-videos")
+            .createSignedUrl(d.video_storage_path, 3600);
+          if (signData?.signedUrl) {
+            d.video_url = signData.signedUrl;
+          }
+        }
+      }
+    } catch {
+      // Non-blocking
+    }
 
     return { success: true, data: dogs };
   } catch (err: unknown) {
@@ -206,8 +258,8 @@ export async function createDogAction(
       status: DOG_STATUSES.PENDING,
     };
 
-    if (videoUrl) {
-      dogPayload.video_url = videoUrl;
+    if (videoStoragePath || (videoUrl && !videoUrl.startsWith("blob:"))) {
+      dogPayload.video_url = videoUrl && !videoUrl.startsWith("blob:") ? videoUrl : null;
       dogPayload.video_storage_path = videoStoragePath;
     }
 

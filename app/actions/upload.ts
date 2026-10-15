@@ -116,16 +116,17 @@ export async function createDogVideoUploadUrlAction(fileInfo: {
       };
     }
 
-    const { data: publicUrlData } = supabase.storage
+    // Generate an authorized signed playback URL (1 hour) for secure preview from private bucket
+    const { data: signPreviewData } = await supabase.storage
       .from("dog-videos")
-      .getPublicUrl(storagePath);
+      .createSignedUrl(storagePath, 3600);
 
     return {
       success: true,
       data: {
         signedUrl: signData.signedUrl,
         storagePath: storagePath,
-        publicUrl: publicUrlData.publicUrl,
+        publicUrl: signPreviewData?.signedUrl || "",
         token: signData.token,
       },
     };

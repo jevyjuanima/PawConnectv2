@@ -281,8 +281,10 @@ export function RehomeForm() {
         xhr.send(file);
       });
 
+      // Instant local preview for zero-latency playback in form
+      const previewUrl = URL.createObjectURL(file);
       setVideo({
-        url: publicUrl,
+        url: previewUrl,
         path: storagePath,
         name: file.name,
         size: file.size,

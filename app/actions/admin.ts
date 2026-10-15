@@ -172,6 +172,22 @@ export async function getAdminDogsAction(
       };
     });
 
+    // Provide signed playback URLs for staff to review videos
+    try {
+      for (const d of dogs) {
+        if (d.video_storage_path) {
+          const { data: signData } = await supabase.storage
+            .from("dog-videos")
+            .createSignedUrl(d.video_storage_path, 3600);
+          if (signData?.signedUrl) {
+            d.video_url = signData.signedUrl;
+          }
+        }
+      }
+    } catch {
+      // Non-blocking
+    }
+
     return { success: true, data: dogs };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Failed to load admin dogs";
@@ -631,8 +647,15 @@ async function schedulePostAdoptionFollowups(
     const today = new Date();
     const records = [];
     for (let month = 1; month <= monthsCount; month++) {
-      const dueDate = new Date(today);
-      dueDate.setMonth(dueDate.getMonth() + month);
+      // Calculate true calendar-month date with month-end rollover clamping
+      const dueDate = new Date(today.getTime());
+      const expectedMonth = (today.getMonth() + month) % 12;
+      dueDate.setMonth(today.getMonth() + month);
+      // If day overflowed into the subsequent month (e.g., Jan 31 -> Mar 3), clamp to last day of intended month
+      if (dueDate.getMonth() !== expectedMonth) {
+        dueDate.setDate(0);
+      }
+
       records.push({
         application_id: applicationId,
         dog_id: dogId,
