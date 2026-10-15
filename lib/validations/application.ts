@@ -56,6 +56,45 @@ export const adoptionApplicationSchema = z.object({
 
 export type AdoptionApplicationInput = z.infer<typeof adoptionApplicationSchema>;
 
+export const adoptionWithScreeningSchema = adoptionApplicationSchema.extend({
+  household_agreement: z.boolean().refine((val) => val === true, {
+    message: "All household members must agree to the adoption",
+  }),
+  landlord_permission: z.boolean().optional().nullable(),
+  has_children: z.boolean().default(false),
+  children_details: z.string().trim().max(500).optional().nullable(),
+  household_members_details: z
+    .string()
+    .trim()
+    .min(5, "Please describe household members and routine (min 5 chars)")
+    .max(1000, "Must not exceed 1000 characters"),
+  pet_care_experience: z
+    .string()
+    .trim()
+    .min(10, "Please describe your pet-care experience (min 10 chars)")
+    .max(1000, "Must not exceed 1000 characters"),
+  daily_alone_hours: z.coerce
+    .number()
+    .int("Hours must be a whole number")
+    .min(0, "Hours cannot be negative")
+    .max(24, "Cannot exceed 24 hours"),
+  daily_care_arrangements: z
+    .string()
+    .trim()
+    .min(10, "Please outline daily care and routine (min 10 chars)")
+    .max(1000, "Must not exceed 1000 characters"),
+  emergency_vet_care_plan: z
+    .string()
+    .trim()
+    .min(10, "Please outline your veterinary care plan (min 10 chars)")
+    .max(1000, "Must not exceed 1000 characters"),
+  screening_consent: z.boolean().refine((val) => val === true, {
+    message: "You must consent to the collection and administrative review of screening answers",
+  }),
+});
+
+export type AdoptionWithScreeningInput = z.infer<typeof adoptionWithScreeningSchema>;
+
 export const applicationStatusUpdateSchema = z.object({
   status: z.enum([
     APPLICATION_STATUSES.PENDING,

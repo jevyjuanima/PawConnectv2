@@ -17,6 +17,9 @@ import {
   ArrowLeft,
   Edit2,
   ShieldCheck,
+  Video,
+  PlayCircle,
+  Trash2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,8 +33,16 @@ import {
 } from "@/lib/validations/dog";
 import { DOG_GENDERS, DOG_SIZES } from "@/lib/constants/statuses";
 import { createDogAction } from "@/app/actions/dogs";
-import { uploadDogPhotoAction } from "@/app/actions/upload";
-import { validateDogImageFile } from "@/lib/validations/upload";
+import {
+  uploadDogPhotoAction,
+  createDogVideoUploadUrlAction,
+  deleteDogVideoAction,
+} from "@/app/actions/upload";
+import {
+  validateDogImageFile,
+  validateDogVideoFile,
+  VIDEO_UPLOAD_LIMITS,
+} from "@/lib/validations/upload";
 import { formatAge, formatCapitalize } from "@/lib/utils/format";
 import { cn } from "@/lib/utils";
 
@@ -41,11 +52,18 @@ interface UploadedPhoto {
   isPrimary: boolean;
 }
 
+interface UploadedVideo {
+  url: string;
+  path: string;
+  name: string;
+  size: number;
+}
+
 type RehomeStep = "basics" | "photos" | "temperament" | "background" | "review" | "submitted";
 
 const STEPS: { id: RehomeStep; label: string; number: number }[] = [
   { id: "basics", label: "About your dog", number: 1 },
-  { id: "photos", label: "Photos", number: 2 },
+  { id: "photos", label: "Photos & Video", number: 2 },
   { id: "temperament", label: "Temperament & care", number: 3 },
   { id: "background", label: "Background", number: 4 },
   { id: "review", label: "Review", number: 5 },
@@ -63,6 +81,11 @@ export function RehomeForm() {
   const [submitting, setSubmitting] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
   const [photos, setPhotos] = React.useState<UploadedPhoto[]>([]);
+  const [video, setVideo] = React.useState<UploadedVideo | null>(null);
+  const [videoUploading, setVideoUploading] = React.useState(false);
+  const [videoProgress, setVideoProgress] = React.useState<number>(0);
+  const [videoError, setVideoError] = React.useState<string | null>(null);
+  const videoInputRef = React.useRef<HTMLInputElement | null>(null);
   const [submittedDogName, setSubmittedDogName] = React.useState<string>("");
   const [formError, setFormError] = React.useState<{ title: string; description: string } | null>(null);
 
@@ -196,6 +219,99 @@ export function RehomeForm() {
     });
   };
 
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setVideoError(null);
+    const validation = validateDogVideoFile({
+      name: file.name,
+      size: file.size,
+      type: file.type,
+    });
+
+    if (!validation.valid) {
+      const err = validation.error || "Invalid video file";
+      setVideoError(err);
+      toast.error(err);
+      e.target.value = "";
+      return;
+    }
+
+    setVideoUploading(true);
+    setVideoProgress(0);
+
+    try {
+      const urlRes = await createDogVideoUploadUrlAction({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+      });
+
+      if (!urlRes.success || !urlRes.data) {
+        throw new Error(urlRes.error || "Failed to initiate video upload");
+      }
+
+      const { signedUrl, storagePath, publicUrl } = urlRes.data;
+
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", signedUrl, true);
+        xhr.setRequestHeader("Content-Type", file.type);
+
+        xhr.upload.onprogress = (evt) => {
+          if (evt.lengthComputable) {
+            const pct = Math.round((evt.loaded / evt.total) * 100);
+            setVideoProgress(pct);
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(`Upload failed with server status ${xhr.status}`));
+          }
+        };
+
+        xhr.onerror = () => {
+          reject(new Error("Network connection error during video upload"));
+        };
+
+        xhr.send(file);
+      });
+
+      setVideo({
+        url: publicUrl,
+        path: storagePath,
+        name: file.name,
+        size: file.size,
+      });
+      toast.success("Dog video uploaded successfully!");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Video upload failed";
+      setVideoError(msg);
+      toast.error(msg);
+    } finally {
+      setVideoUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleRemoveVideo = async () => {
+    if (!video) return;
+    const oldPath = video.path;
+    setVideo(null);
+    setVideoProgress(0);
+    setVideoError(null);
+    try {
+      await deleteDogVideoAction(oldPath);
+      toast.success("Video removed");
+    } catch {
+      // Ignored
+    }
+  };
+
   const onSubmit = async (values: DogSubmissionInput) => {
     setFormError(null);
     setSubmitting(true);
@@ -207,7 +323,8 @@ export function RehomeForm() {
           path: p.path,
           url: p.url,
           isPrimary: p.isPrimary,
-        }))
+        })),
+        video ? { url: video.url, path: video.path } : null
       );
 
       if (!res.success) {
@@ -671,6 +788,129 @@ export function RehomeForm() {
               </p>
             )}
 
+            {/* Video Upload Section */}
+            <div className="pt-6 border-t border-border/70 space-y-4">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-foreground">Video Introduction</h3>
+                  <span className="text-[10px] font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
+                    Optional
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Upload an optional video showing your dog&apos;s personality, playfulness, and gait.
+                </p>
+              </div>
+
+              {/* Video Validation / Upload Error */}
+              {videoError && (
+                <Alert variant="destructive" className="py-2.5">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">{videoError}</AlertDescription>
+                </Alert>
+              )}
+
+              {/* Video Dropzone (when not uploaded and not uploading) */}
+              {!video && !videoUploading && (
+                <div className="relative border border-dashed border-border/80 rounded-2xl p-6 text-center hover:border-primary/50 transition-colors bg-muted/10">
+                  <input
+                    ref={videoInputRef}
+                    type="file"
+                    accept="video/mp4,video/webm"
+                    onChange={handleVideoUpload}
+                    disabled={videoUploading}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                    aria-label="Upload dog introduction video"
+                  />
+                  <div className="flex flex-col items-center justify-center space-y-2 pointer-events-none">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <Video className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">
+                        Upload introduction video
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        MP4 or WebM up to 50MB (optional)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Uploading Progress */}
+              {videoUploading && (
+                <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-2.5">
+                  <div className="flex items-center justify-between text-xs font-medium">
+                    <span className="flex items-center gap-2 text-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                      Uploading video...
+                    </span>
+                    <span className="text-primary font-bold">{videoProgress}%</span>
+                  </div>
+                  <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all duration-150 ease-out"
+                      style={{ width: `${videoProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground text-center">
+                    Please keep this window open while your video finishes uploading.
+                  </p>
+                </div>
+              )}
+
+              {/* Video Preview and Actions */}
+              {video && !videoUploading && (
+                <div className="rounded-2xl border border-border/80 bg-card p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <PlayCircle className="h-4 w-4 text-primary shrink-0" />
+                      <span className="text-xs sm:text-sm font-medium text-foreground truncate">
+                        {video.name}
+                      </span>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        ({(video.size / (1024 * 1024)).toFixed(1)} MB)
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className={cn(buttonVariants({ variant: "outline", size: "sm" }), "cursor-pointer text-xs h-8")}>
+                        <span>Replace</span>
+                        <input
+                          type="file"
+                          accept="video/mp4,video/webm"
+                          onChange={handleVideoUpload}
+                          className="sr-only"
+                        />
+                      </label>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleRemoveVideo}
+                        className="text-xs h-8 gap-1.5"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Remove</span>
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="relative rounded-xl overflow-hidden bg-black aspect-video max-h-72 w-full flex items-center justify-center">
+                    <video
+                      src={video.url}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="w-full h-full object-contain"
+                    >
+                      Your browser does not support HTML5 video preview.
+                    </video>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="pt-4 flex items-center justify-between gap-3">
               <Button
                 type="button"
@@ -989,6 +1229,40 @@ export function RehomeForm() {
                 ) : (
                   <p className="text-xs text-muted-foreground italic">
                     No photos uploaded. (Photos can still be added before publishing).
+                  </p>
+                )}
+              </div>
+
+              {/* Video Review */}
+              <div className="py-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Video introduction
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep("photos")}
+                    className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline cursor-pointer"
+                  >
+                    <Edit2 className="h-3 w-3" />
+                    <span>Edit</span>
+                  </button>
+                </div>
+                {video ? (
+                  <div className="flex items-center gap-3 p-3 rounded-xl border border-border/70 bg-muted/20">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <PlayCircle className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">{video.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(video.size / (1024 * 1024)).toFixed(1)} MB · Ready to submit
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">
+                    No video uploaded (optional).
                   </p>
                 )}
               </div>

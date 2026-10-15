@@ -43,3 +43,25 @@ export const DOG_GENDERS = {
 } as const;
 
 export type DogGender = (typeof DOG_GENDERS)[keyof typeof DOG_GENDERS];
+
+export const SCREENING_STATUSES = {
+  PENDING: "pending",
+  UNDER_REVIEW: "under_review",
+  APPROVED: "approved",
+  REJECTED: "rejected",
+} as const;
+
+export type ScreeningStatus =
+  (typeof SCREENING_STATUSES)[keyof typeof SCREENING_STATUSES];
+
+export const FOLLOWUP_STATUSES = {
+  UPCOMING: "upcoming",
+  DUE: "due",
+  SUBMITTED: "submitted",
+  REVIEWED: "reviewed",
+  NEEDS_FOLLOW_UP: "needs_follow_up",
+} as const;
+
+export type FollowupStatus =
+  (typeof FOLLOWUP_STATUSES)[keyof typeof FOLLOWUP_STATUSES];
+

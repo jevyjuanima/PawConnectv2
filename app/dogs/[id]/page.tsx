@@ -9,6 +9,7 @@ import { DogImageGallery } from "@/components/dogs/DogImageGallery";
 import { DogCard } from "@/components/dogs/DogCard";
 import { getDogByIdAction, getAvailableDogsAction } from "@/app/actions/dogs";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { isCurrentUserAdmin } from "@/lib/clerk/auth";
 import {
   formatAge,
   formatCapitalize,
@@ -54,6 +55,12 @@ export default async function DogDetailPage({ params }: DogDetailPageProps) {
   const dog = result.data;
   const { userId } = await auth();
   const isOwner = Boolean(userId && dog.owner_id === userId);
+  const isAdmin = await isCurrentUserAdmin();
+
+  // Enforce: Pending listings are not publicly visible (only owner or staff)
+  if (dog.status === "pending" && !isOwner && !isAdmin) {
+    notFound();
+  }
 
   // Check if current user has an active application for this dog
   let existingApplicationId: string | null = null;
@@ -120,6 +127,7 @@ export default async function DogDetailPage({ params }: DogDetailPageProps) {
             dogName={dog.name}
             images={dog.images}
             primaryImageUrl={dog.primary_image}
+            videoUrl={dog.video_url}
           />
         </div>
 

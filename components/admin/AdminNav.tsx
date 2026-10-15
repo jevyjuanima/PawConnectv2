@@ -3,7 +3,14 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Dog, HeartHandshake, Users } from "lucide-react";
+import {
+  LayoutDashboard,
+  Dog,
+  HeartHandshake,
+  ShieldCheck,
+  Heart,
+  Users,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function AdminNav() {
@@ -29,6 +36,18 @@ export function AdminNav() {
       isActive: pathname.startsWith("/admin/applications"),
     },
     {
+      href: "/admin/screenings",
+      label: "Screenings",
+      icon: ShieldCheck,
+      isActive: pathname.startsWith("/admin/screenings"),
+    },
+    {
+      href: "/admin/follow-ups",
+      label: "Follow-ups",
+      icon: Heart,
+      isActive: pathname.startsWith("/admin/follow-ups"),
+    },
+    {
       href: "/admin/users",
       label: "Users",
       icon: Users,
@@ -37,7 +56,7 @@ export function AdminNav() {
   ];
 
   return (
-    <nav className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 text-xs font-semibold">
+    <nav className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs font-semibold">
       {links.map((link) => {
         const Icon = link.icon;
         return (
@@ -48,11 +67,16 @@ export function AdminNav() {
               "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all shrink-0",
               link.isActive
                 ? "bg-primary text-primary-foreground border-primary shadow-xs font-bold"
-                : "bg-background hover:bg-muted text-muted-foreground hover:text-foreground"
+                : "bg-background hover:bg-muted text-muted-foreground hover:text-foreground border-border"
             )}
           >
-            <Icon className={cn("h-3.5 w-3.5", link.isActive ? "text-primary-foreground" : "text-primary")} />
-            {link.label}
+            <Icon
+              className={cn(
+                "h-3.5 w-3.5",
+                link.isActive ? "text-primary-foreground" : "text-muted-foreground"
+              )}
+            />
+            <span>{link.label}</span>
           </Link>
         );
       })}

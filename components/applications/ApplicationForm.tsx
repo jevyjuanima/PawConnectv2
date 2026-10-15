@@ -13,6 +13,12 @@ import {
   CheckCircle2,
   Edit2,
   Check,
+  ShieldCheck,
+  Home,
+  Users,
+  Heart,
+  Stethoscope,
+  Info,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,11 +27,13 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
-  adoptionApplicationSchema,
+  adoptionWithScreeningSchema,
   HOUSING_TYPES,
   EXPERIENCE_LEVELS,
+  type AdoptionWithScreeningInput,
   type AdoptionApplicationInput,
 } from "@/lib/validations/application";
+import type { HouseholdScreeningInput } from "@/lib/validations/screening";
 import { createApplicationAction } from "@/app/actions/applications";
 import type { DogWithImages } from "@/types";
 import type { UserProfile } from "@/lib/clerk/auth";
@@ -38,12 +46,12 @@ interface ApplicationFormProps {
 
 type FormStep = "about" | "home" | "experience" | "plans" | "review" | "submitted";
 
-const STEPS: { id: FormStep; label: string; number: number }[] = [
-  { id: "about", label: "About you", number: 1 },
-  { id: "home", label: "Your home", number: 2 },
-  { id: "experience", label: "Experience & care", number: 3 },
-  { id: "plans", label: "Your plans", number: 4 },
-  { id: "review", label: "Review", number: 5 },
+const STEPS: { id: FormStep; label: string; number: number; icon: React.ElementType }[] = [
+  { id: "about", label: "Household & family", number: 1, icon: Users },
+  { id: "home", label: "Housing suitability", number: 2, icon: Home },
+  { id: "experience", label: "Pet experience", number: 3, icon: Heart },
+  { id: "plans", label: "Daily care & vet plan", number: 4, icon: Stethoscope },
+  { id: "review", label: "Review & submit", number: 5, icon: ShieldCheck },
 ];
 
 const HOUSING_OPTIONS = [
@@ -84,40 +92,80 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
     watch,
     trigger,
     formState: { errors },
-  } = useForm<AdoptionApplicationInput>({
-    resolver: zodResolver(adoptionApplicationSchema),
+  } = useForm<AdoptionWithScreeningInput>({
+    resolver: zodResolver(adoptionWithScreeningSchema),
     mode: "onTouched",
     defaultValues: {
       dog_id: dog.id,
+      household_members_count: 1,
+      household_members_details: "",
+      has_children: false,
+      children_details: "",
+      household_agreement: false,
       housing_type: HOUSING_TYPES.OWN_HOUSE,
       has_yard: false,
+      landlord_permission: null,
+      experience_level: EXPERIENCE_LEVELS.EXPERIENCED,
+      pet_care_experience: "",
       has_other_pets: false,
       other_pets_details: "",
-      household_members_count: 1,
-      experience_level: EXPERIENCE_LEVELS.EXPERIENCED,
+      daily_alone_hours: 4,
+      daily_care_arrangements: "",
+      emergency_vet_care_plan: "",
       reason_for_adopting: "",
+      screening_consent: false,
     },
   });
 
   const formValues = watch();
   const watchHasOtherPets = watch("has_other_pets");
+  const watchHasChildren = watch("has_children");
+  const watchHousingType = watch("housing_type");
+  const isRenting =
+    watchHousingType === HOUSING_TYPES.RENT_HOUSE ||
+    watchHousingType === HOUSING_TYPES.APARTMENT ||
+    watchHousingType === HOUSING_TYPES.CONDO;
   const reasonText = watch("reason_for_adopting") || "";
 
-  // Step transitions with field validation
+  // Step transitions with comprehensive field validation
   const goToNextStep = async () => {
     setFormError(null);
 
     if (currentStep === "about") {
-      const isValid = await trigger(["household_members_count"]);
+      const fieldsToValidate: (keyof AdoptionWithScreeningInput)[] = [
+        "household_members_count",
+        "household_members_details",
+        "has_children",
+        "household_agreement",
+      ];
+      if (watchHasChildren) {
+        fieldsToValidate.push("children_details");
+      }
+      const isValid = await trigger(fieldsToValidate);
       if (isValid) setCurrentStep("home");
     } else if (currentStep === "home") {
-      const isValid = await trigger(["housing_type", "has_yard"]);
+      const fieldsToValidate: (keyof AdoptionWithScreeningInput)[] = ["housing_type", "has_yard"];
+      const isValid = await trigger(fieldsToValidate);
       if (isValid) setCurrentStep("experience");
     } else if (currentStep === "experience") {
-      const isValid = await trigger(["experience_level", "has_other_pets", "other_pets_details"]);
+      const fieldsToValidate: (keyof AdoptionWithScreeningInput)[] = [
+        "experience_level",
+        "pet_care_experience",
+        "has_other_pets",
+      ];
+      if (watchHasOtherPets) {
+        fieldsToValidate.push("other_pets_details");
+      }
+      const isValid = await trigger(fieldsToValidate);
       if (isValid) setCurrentStep("plans");
     } else if (currentStep === "plans") {
-      const isValid = await trigger(["reason_for_adopting"]);
+      const isValid = await trigger([
+        "daily_alone_hours",
+        "daily_care_arrangements",
+        "emergency_vet_care_plan",
+        "reason_for_adopting",
+        "screening_consent",
+      ]);
       if (isValid) setCurrentStep("review");
     }
   };
@@ -130,24 +178,52 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
     else if (currentStep === "review") setCurrentStep("plans");
   };
 
-  const onSubmit = async (values: AdoptionApplicationInput) => {
+  const onSubmit = async (values: AdoptionWithScreeningInput) => {
     setFormError(null);
     setSubmitting(true);
 
+    const applicationInput: AdoptionApplicationInput = {
+      dog_id: values.dog_id,
+      housing_type: values.housing_type,
+      has_yard: values.has_yard,
+      has_other_pets: values.has_other_pets,
+      other_pets_details: values.has_other_pets ? values.other_pets_details : undefined,
+      household_members_count: values.household_members_count,
+      experience_level: values.experience_level,
+      reason_for_adopting: values.reason_for_adopting,
+    };
+
+    const screeningInput: HouseholdScreeningInput = {
+      household_agreement: values.household_agreement,
+      housing_type: values.housing_type,
+      landlord_permission: isRenting ? values.landlord_permission : null,
+      has_children: values.has_children,
+      children_details: values.has_children ? values.children_details : null,
+      household_members_details: values.household_members_details,
+      existing_pets_details: values.has_other_pets ? values.other_pets_details : null,
+      pet_care_experience: values.pet_care_experience,
+      daily_alone_hours: values.daily_alone_hours,
+      daily_care_arrangements: values.daily_care_arrangements,
+      emergency_vet_care_plan: values.emergency_vet_care_plan,
+      screening_consent: values.screening_consent,
+    };
+
     try {
-      const res = await createApplicationAction(values);
+      const res = await createApplicationAction(applicationInput, screeningInput);
 
       if (!res.success) {
         setFormError({
           title: "We couldn't submit your application.",
-          description: res.error || "Please try again. Your answers have been kept so you don't have to start over.",
+          description:
+            res.error ||
+            "Please check the information provided and try again. Your answers have been preserved.",
         });
-        toast.error("We couldn't submit your application. Please check your information and try again.");
+        toast.error("Submission could not be completed. Please review your answers.");
         setSubmitting(false);
         return;
       }
 
-      toast.success(`Application submitted for ${dog.name}.`);
+      toast.success(`Application and household screening submitted for ${dog.name}.`);
       setCurrentStep("submitted");
     } catch {
       setFormError({
@@ -159,7 +235,7 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
     }
   };
 
-  // 1. SUCCESS / SUBMITTED STATE
+  // SUCCESS / SUBMITTED STATE
   if (currentStep === "submitted") {
     return (
       <div className="rounded-2xl border border-border/80 bg-card p-6 sm:p-10 space-y-6 animate-in fade-in-50 duration-300">
@@ -169,25 +245,31 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
 
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">
-            Adoption Questionnaire Received
+            Adoption Application &amp; Household Screening Received
           </p>
           <h2 className="font-serif text-2xl sm:text-3xl font-normal text-foreground">
             Application submitted.
           </h2>
           <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
-            Your application for {dog.name} has been submitted successfully. You can follow its review progress from My Applications.
+            Your application and household suitability screening for {dog.name} have been received. An administrator will review your household screening prior to application approval.
           </p>
         </div>
 
-        <div className="rounded-xl border border-border/70 bg-muted/20 p-4 text-xs sm:text-sm space-y-2">
+        <div className="rounded-xl border border-border/70 bg-muted/20 p-4 text-xs sm:text-sm space-y-2.5">
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Dog Applied For</span>
             <span className="font-medium text-foreground">{dog.name}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Initial Status</span>
-            <span className="font-medium text-emerald-700 dark:text-emerald-300">
+            <span className="text-muted-foreground">Household Screening</span>
+            <span className="font-medium text-amber-700 dark:text-amber-400">
               Pending Review
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-muted-foreground">Adoption Application</span>
+            <span className="font-medium text-muted-foreground">
+              Queued (Awaiting Screening Approval)
             </span>
           </div>
         </div>
@@ -197,13 +279,13 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
             href="/my-applications"
             className={cn(buttonVariants({ size: "lg" }), "font-medium")}
           >
-            View Application
+            View My Applications
           </Link>
           <Link
-            href="/dogs"
+            href={`/dogs/${dog.id}`}
             className={cn(buttonVariants({ variant: "outline", size: "lg" }), "font-medium")}
           >
-            Browse More Dogs
+            Back to {dog.name}&apos;s Profile
           </Link>
         </div>
       </div>
@@ -211,42 +293,44 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
   }
 
   const currentStepNumber = STEPS.find((s) => s.id === currentStep)?.number || 1;
-
-  // Helper text lookups for review
-  const housingLabel = HOUSING_OPTIONS.find((h) => h.value === formValues.housing_type)?.label || formValues.housing_type;
-  const experienceLabel = EXPERIENCE_OPTIONS.find((e) => e.value === formValues.experience_level)?.label || formValues.experience_level;
+  const housingLabel =
+    HOUSING_OPTIONS.find((h) => h.value === formValues.housing_type)?.label ||
+    formValues.housing_type;
+  const experienceLabel =
+    EXPERIENCE_OPTIONS.find((e) => e.value === formValues.experience_level)?.label ||
+    formValues.experience_level;
 
   return (
     <div className="space-y-8">
-      {/* Subtle Progress Indicator */}
-      <div className="space-y-2">
-        {/* Desktop Progress Sequence */}
-        <div className="hidden sm:grid grid-cols-5 gap-2 text-xs border-b border-border/70 pb-3" role="tablist">
+      {/* Step Tracker Header */}
+      <div className="space-y-4">
+        <div className="hidden sm:grid grid-cols-5 gap-2 border-b border-border/70 pb-4">
           {STEPS.map((s) => {
-            const isCurrent = s.id === currentStep;
             const isCompleted = s.number < currentStepNumber;
+            const isCurrent = s.id === currentStep;
+
             return (
               <button
                 key={s.id}
                 type="button"
-                role="tab"
-                aria-selected={isCurrent}
-                disabled={s.number > currentStepNumber}
                 onClick={() => {
-                  if (s.number < currentStepNumber) setCurrentStep(s.id);
+                  if (s.number < currentStepNumber) {
+                    setCurrentStep(s.id);
+                  }
                 }}
+                disabled={s.number > currentStepNumber}
                 className={cn(
-                  "text-left transition-colors font-medium flex items-center gap-1.5",
+                  "flex items-center gap-2 text-left text-xs transition-colors py-1 cursor-pointer disabled:cursor-not-allowed",
                   isCurrent
-                    ? "text-primary font-semibold"
+                    ? "font-semibold text-primary"
                     : isCompleted
-                    ? "text-foreground hover:text-primary cursor-pointer"
-                    : "text-muted-foreground/60 cursor-not-allowed"
+                    ? "font-medium text-foreground hover:text-primary"
+                    : "text-muted-foreground/60"
                 )}
               >
                 <span
                   className={cn(
-                    "flex h-5 w-5 items-center justify-center rounded-full text-[11px]",
+                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px]",
                     isCurrent
                       ? "bg-primary text-primary-foreground font-bold"
                       : isCompleted
@@ -290,15 +374,15 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
 
       {/* FORM BODY */}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-        {/* STEP 1: ABOUT YOU */}
+        {/* STEP 1: HOUSEHOLD & FAMILY */}
         {currentStep === "about" && (
           <section className="space-y-6 animate-in fade-in-50 duration-200">
             <div className="space-y-1">
               <h2 className="font-serif text-2xl font-normal text-foreground">
-                About you
+                Household &amp; Family Screening
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                Please verify your household details so we can understand your living arrangements.
+                To evaluate suitability, please share details about the people living in your home and their agreement to welcome {dog.name}.
               </p>
             </div>
 
@@ -322,7 +406,7 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
               )}
             </div>
 
-            {/* Household Members Field */}
+            {/* Household Members Count */}
             <div className="space-y-2">
               <Label htmlFor="household_members_count" className="text-sm font-medium text-foreground">
                 How many people live in your home? <span className="text-destructive">*</span>
@@ -346,6 +430,116 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
               )}
             </div>
 
+            {/* Household Members Description */}
+            <div className="space-y-2">
+              <Label htmlFor="household_members_details" className="text-sm font-medium text-foreground">
+                Describe the household members and daily routine <span className="text-destructive">*</span>
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Who lives in the home (e.g., adults, roommates, schedules, activity level of home)?
+              </p>
+              <Textarea
+                id="household_members_details"
+                placeholder="e.g. 2 adults (working hybrid schedules), quiet household with regular daily exercise routine..."
+                rows={3}
+                className="text-sm leading-relaxed"
+                {...register("household_members_details")}
+                aria-invalid={Boolean(errors.household_members_details)}
+              />
+              {errors.household_members_details && (
+                <p className="text-xs text-destructive">{errors.household_members_details.message}</p>
+              )}
+            </div>
+
+            {/* Children in Household */}
+            <div className="space-y-3">
+              <Controller
+                control={control}
+                name="has_children"
+                render={({ field }) => (
+                  <div
+                    onClick={() => field.onChange(!field.value)}
+                    className={cn(
+                      "flex items-start gap-3 p-4 rounded-xl border cursor-pointer select-none transition-all",
+                      field.value
+                        ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                        : "border-border/80 bg-card hover:bg-muted/20"
+                    )}
+                  >
+                    <Checkbox
+                      id="has_children"
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      className="mt-0.5"
+                    />
+                    <div className="space-y-0.5">
+                      <Label htmlFor="has_children" className="text-sm font-medium cursor-pointer">
+                        Children live in or frequently visit the home
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Select if children under 18 reside in the home or visit regularly.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              />
+
+              {watchHasChildren && (
+                <div className="space-y-2 pl-2 border-l-2 border-primary/30 animate-in fade-in-50 duration-200">
+                  <Label htmlFor="children_details" className="text-sm font-medium text-foreground">
+                    Ages of children &amp; familiarity with dogs
+                  </Label>
+                  <Textarea
+                    id="children_details"
+                    placeholder="e.g. 2 children aged 7 and 10; both are gentle and accustomed to family dogs..."
+                    rows={2}
+                    className="text-sm leading-relaxed"
+                    {...register("children_details")}
+                  />
+                  {errors.children_details && (
+                    <p className="text-xs text-destructive">{errors.children_details.message}</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Household Agreement Checkbox */}
+            <div className="space-y-2">
+              <Controller
+                control={control}
+                name="household_agreement"
+                render={({ field }) => (
+                  <div
+                    onClick={() => field.onChange(!field.value)}
+                    className={cn(
+                      "flex items-start gap-3 p-4 rounded-xl border cursor-pointer select-none transition-all",
+                      field.value
+                        ? "border-emerald-600 bg-emerald-500/5 ring-1 ring-emerald-500/30"
+                        : "border-border/80 bg-card hover:bg-muted/20"
+                    )}
+                  >
+                    <Checkbox
+                      id="household_agreement"
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      className="mt-0.5"
+                    />
+                    <div className="space-y-0.5">
+                      <Label htmlFor="household_agreement" className="text-sm font-medium cursor-pointer">
+                        All household members agree to adopting this dog <span className="text-destructive">*</span>
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Every adult in the home is fully aware of and supports this adoption application.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              />
+              {errors.household_agreement && (
+                <p className="text-xs text-destructive">{errors.household_agreement.message}</p>
+              )}
+            </div>
+
             <div className="pt-4 flex justify-end">
               <Button
                 type="button"
@@ -353,22 +547,22 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                 onClick={goToNextStep}
                 className="gap-2 font-medium w-full sm:w-auto"
               >
-                <span>Continue to your home</span>
+                <span>Continue to housing suitability</span>
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           </section>
         )}
 
-        {/* STEP 2: YOUR HOME */}
+        {/* STEP 2: HOUSING SUITABILITY */}
         {currentStep === "home" && (
           <section className="space-y-6 animate-in fade-in-50 duration-200">
             <div className="space-y-1">
               <h2 className="font-serif text-2xl font-normal text-foreground">
-                Your home
+                Housing Suitability
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                We ask this because different dogs have specific space, exercise, and housing requirements.
+                We assess housing arrangements to ensure {dog.name} has adequate space, safety, and necessary permissions.
               </p>
             </div>
 
@@ -446,6 +640,42 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
               )}
             />
 
+            {/* Landlord Permission (if renting/condo) */}
+            {isRenting && (
+              <div className="space-y-2 animate-in fade-in-50 duration-200">
+                <Controller
+                  control={control}
+                  name="landlord_permission"
+                  render={({ field }) => (
+                    <div
+                      onClick={() => field.onChange(!field.value)}
+                      className={cn(
+                        "flex items-start gap-3 p-4 rounded-xl border cursor-pointer select-none transition-all",
+                        field.value
+                          ? "border-emerald-600 bg-emerald-500/5 ring-1 ring-emerald-500/30"
+                          : "border-border/80 bg-card hover:bg-muted/20"
+                      )}
+                    >
+                      <Checkbox
+                        id="landlord_permission"
+                        checked={Boolean(field.value)}
+                        onCheckedChange={field.onChange}
+                        className="mt-0.5"
+                      />
+                      <div className="space-y-0.5">
+                        <Label htmlFor="landlord_permission" className="text-sm font-medium cursor-pointer">
+                          I have landlord / HOA permission to have a dog
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Pets are allowed under my lease or community bylaws, including breed or weight guidelines.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                />
+              </div>
+            )}
+
             <div className="pt-4 flex items-center justify-between gap-3">
               <Button
                 type="button"
@@ -475,14 +705,14 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
           <section className="space-y-6 animate-in fade-in-50 duration-200">
             <div className="space-y-1">
               <h2 className="font-serif text-2xl font-normal text-foreground">
-                Experience &amp; care
+                Pet Experience &amp; Current Animals
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                Help us understand your familiarity with dogs and other animals currently in your household.
+                Help us understand your experience raising pets and any animals currently living in your home.
               </p>
             </div>
 
-            {/* Pet Ownership Experience */}
+            {/* Pet Ownership Experience Level */}
             <div className="space-y-3">
               <Label className="text-sm font-medium text-foreground">
                 Your experience with dogs <span className="text-destructive">*</span>
@@ -524,6 +754,27 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
               )}
             </div>
 
+            {/* Detailed Pet Care Experience Description */}
+            <div className="space-y-2">
+              <Label htmlFor="pet_care_experience" className="text-sm font-medium text-foreground">
+                Previous pet-care background &amp; experience <span className="text-destructive">*</span>
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Describe dogs or other pets you have owned, fostered, or cared for in the past.
+              </p>
+              <Textarea
+                id="pet_care_experience"
+                placeholder="e.g. Raised a Labrador for 11 years from puppyhood through senior care; experienced with basic obedience, leash training, and monthly grooming..."
+                rows={3}
+                className="text-sm leading-relaxed"
+                {...register("pet_care_experience")}
+                aria-invalid={Boolean(errors.pet_care_experience)}
+              />
+              {errors.pet_care_experience && (
+                <p className="text-xs text-destructive">{errors.pet_care_experience.message}</p>
+              )}
+            </div>
+
             {/* Other Pets Checkbox */}
             <Controller
               control={control}
@@ -556,7 +807,7 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
               )}
             />
 
-            {/* Other Pets Details (Conditionally Displayed) */}
+            {/* Other Pets Details */}
             {watchHasOtherPets && (
               <div className="space-y-2 animate-in fade-in-50 duration-200">
                 <Label htmlFor="other_pets_details" className="text-sm font-medium text-foreground">
@@ -567,7 +818,7 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                 </p>
                 <Textarea
                   id="other_pets_details"
-                  placeholder="e.g. 1 female domestic shorthair cat (5 yrs, calm indoors), 1 friendly male Golden Retriever (3 yrs, neutered)..."
+                  placeholder="e.g. 1 female cat (4 yrs, indoor-only), 1 neutered male beagle (6 yrs, dog-friendly)..."
                   rows={3}
                   className="text-sm leading-relaxed"
                   {...register("other_pets_details")}
@@ -592,44 +843,116 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                 onClick={goToNextStep}
                 className="gap-2 font-medium"
               >
-                <span>Continue to your plans</span>
+                <span>Continue to daily care &amp; plans</span>
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           </section>
         )}
 
-        {/* STEP 4: YOUR PLANS FOR THIS DOG */}
+        {/* STEP 4: DAILY CARE & VET PLAN */}
         {currentStep === "plans" && (
           <section className="space-y-6 animate-in fade-in-50 duration-200">
             <div className="space-y-1">
               <h2 className="font-serif text-2xl font-normal text-foreground">
-                Your plans for {dog.name}
+                Daily Care &amp; Veterinary Plan
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                Share what life would look like for {dog.name} in your home.
+                Demonstrate how you will care for {dog.name}&apos;s daily welfare and handle veterinary health needs.
               </p>
             </div>
 
+            {/* Daily Alone Hours */}
+            <div className="space-y-2">
+              <Label htmlFor="daily_alone_hours" className="text-sm font-medium text-foreground">
+                Hours the dog may be left alone on typical weekdays <span className="text-destructive">*</span>
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Approximate consecutive hours per day without human company.
+              </p>
+              <div className="flex items-center gap-3">
+                <Input
+                  id="daily_alone_hours"
+                  type="number"
+                  min={0}
+                  max={24}
+                  className="max-w-[120px] text-sm"
+                  {...register("daily_alone_hours", { valueAsNumber: true })}
+                  aria-invalid={Boolean(errors.daily_alone_hours)}
+                />
+                <span className="text-sm text-muted-foreground">hours / day</span>
+              </div>
+              {errors.daily_alone_hours && (
+                <p className="text-xs text-destructive">{errors.daily_alone_hours.message}</p>
+              )}
+            </div>
+
+            {/* Daily Care Arrangements */}
+            <div className="space-y-2">
+              <Label htmlFor="daily_care_arrangements" className="text-sm font-medium text-foreground">
+                Daily care arrangements &amp; exercise routine <span className="text-destructive">*</span>
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Outline feeding schedule, walks, potty breaks, exercise, and who cares for the dog during work hours.
+              </p>
+              <Textarea
+                id="daily_care_arrangements"
+                placeholder="e.g. Morning walk for 30 mins, breakfast at 7:30 AM, lunch break garden access via family member, evening park exercise for 45 mins, dinner at 6:30 PM..."
+                rows={3}
+                className="text-sm leading-relaxed"
+                {...register("daily_care_arrangements")}
+                aria-invalid={Boolean(errors.daily_care_arrangements)}
+              />
+              {errors.daily_care_arrangements && (
+                <p className="text-xs text-destructive">{errors.daily_care_arrangements.message}</p>
+              )}
+            </div>
+
+            {/* Emergency Vet Care Plan */}
+            <div className="space-y-2">
+              <Label htmlFor="emergency_vet_care_plan" className="text-sm font-medium text-foreground">
+                Veterinary care &amp; emergency arrangements <span className="text-destructive">*</span>
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Your plan for annual vaccinations, parasite prevention, and financing unexpected veterinary emergencies (savings, pet insurance, or local vet clinic).
+              </p>
+              <Textarea
+                id="emergency_vet_care_plan"
+                placeholder="e.g. Registered with our local vet clinic (Westside Animal Hospital), pet insurance policy planned, emergency savings fund maintained for unexpected illness..."
+                rows={3}
+                className="text-sm leading-relaxed"
+                {...register("emergency_vet_care_plan")}
+                aria-invalid={Boolean(errors.emergency_vet_care_plan)}
+              />
+              {errors.emergency_vet_care_plan && (
+                <p className="text-xs text-destructive">{errors.emergency_vet_care_plan.message}</p>
+              )}
+            </div>
+
+            {/* Reason for Adopting */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="reason_for_adopting" className="text-sm font-medium text-foreground">
                   Why would you like to adopt {dog.name}? <span className="text-destructive">*</span>
                 </Label>
-                <span className={cn(
-                  "text-[11px]",
-                  reasonText.length >= 30 ? "text-emerald-700 dark:text-emerald-400 font-medium" : "text-muted-foreground"
-                )}>
+                <span
+                  className={cn(
+                    "text-[11px]",
+                    reasonText.length >= 30
+                      ? "text-emerald-700 dark:text-emerald-400 font-medium"
+                      : "text-muted-foreground"
+                  )}
+                >
                   {reasonText.length} / 30 min characters
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Tell us what drew you to {dog.name}, your typical daily schedule, exercise routines, and the life you hope to provide.
+                Tell us what drew you to {dog.name} and the life you hope to provide.
               </p>
               <Textarea
                 id="reason_for_adopting"
                 placeholder={`Tell us what drew you to ${dog.name} and what kind of home, routine, and care you're hoping to provide...`}
-                rows={6}
+                rows={4}
                 className="text-sm leading-relaxed"
                 {...register("reason_for_adopting")}
                 aria-invalid={Boolean(errors.reason_for_adopting)}
@@ -638,6 +961,43 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                 <p className="text-xs text-destructive">
                   {errors.reason_for_adopting.message || "Please provide at least 30 characters explaining your plans."}
                 </p>
+              )}
+            </div>
+
+            {/* Screening Consent Checkbox */}
+            <div className="space-y-2 pt-2">
+              <Controller
+                control={control}
+                name="screening_consent"
+                render={({ field }) => (
+                  <div
+                    onClick={() => field.onChange(!field.value)}
+                    className={cn(
+                      "flex items-start gap-3 p-4 rounded-xl border cursor-pointer select-none transition-all",
+                      field.value
+                        ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                        : "border-border/80 bg-card hover:bg-muted/20"
+                    )}
+                  >
+                    <Checkbox
+                      id="screening_consent"
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      className="mt-0.5"
+                    />
+                    <div className="space-y-0.5">
+                      <Label htmlFor="screening_consent" className="text-sm font-medium cursor-pointer">
+                        Consent to household suitability review <span className="text-destructive">*</span>
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        I consent to the collection and administrative review of these household suitability answers. I confirm all statements are truthful and accurate.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              />
+              {errors.screening_consent && (
+                <p className="text-xs text-destructive">{errors.screening_consent.message}</p>
               )}
             </div>
 
@@ -658,7 +1018,7 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                 onClick={goToNextStep}
                 className="gap-2 font-medium"
               >
-                <span>Review application</span>
+                <span>Review application &amp; screening</span>
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
@@ -670,25 +1030,24 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
           <section className="space-y-8 animate-in fade-in-50 duration-200">
             <div className="space-y-1">
               <h2 className="font-serif text-2xl font-normal text-foreground">
-                Review your application
+                Review your application &amp; screening
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground">
-                Please confirm your answers before final submission. You can edit any section if needed.
+                Please verify all answers before submission. You can edit any section if anything needs updating.
               </p>
             </div>
 
-            {/* Review Sections */}
             <div className="divide-y divide-border/70 border-y border-border/70">
-              {/* Section 1: About You */}
+              {/* Section 1: Household & Family */}
               <div className="py-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    About you
+                    Household &amp; Family
                   </h3>
                   <button
                     type="button"
                     onClick={() => setCurrentStep("about")}
-                    className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline"
+                    className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline cursor-pointer"
                   >
                     <Edit2 className="h-3 w-3" />
                     <span>Edit</span>
@@ -703,23 +1062,36 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                     {applicant?.email && ` (${applicant.email})`}
                   </p>
                   <p className="text-foreground">
-                    <span className="text-muted-foreground">Household members: </span>
+                    <span className="text-muted-foreground">Members count: </span>
                     {formValues.household_members_count}{" "}
                     {formValues.household_members_count === 1 ? "person" : "people"}
+                  </p>
+                  <p className="text-foreground text-xs text-muted-foreground">
+                    Routine: {formValues.household_members_details}
+                  </p>
+                  <p className="text-foreground">
+                    <span className="text-muted-foreground">Children in home: </span>
+                    {formValues.has_children
+                      ? formValues.children_details || "Yes"
+                      : "No children residing or regularly visiting"}
+                  </p>
+                  <p className="text-emerald-700 dark:text-emerald-400 font-medium text-xs flex items-center gap-1.5 pt-0.5">
+                    <Check className="h-3.5 w-3.5" />
+                    All household members agree to the adoption
                   </p>
                 </div>
               </div>
 
-              {/* Section 2: Your Home */}
+              {/* Section 2: Housing Suitability */}
               <div className="py-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Your home
+                    Housing Suitability
                   </h3>
                   <button
                     type="button"
                     onClick={() => setCurrentStep("home")}
-                    className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline"
+                    className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline cursor-pointer"
                   >
                     <Edit2 className="h-3 w-3" />
                     <span>Edit</span>
@@ -734,19 +1106,25 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                     <span className="text-muted-foreground">Enclosed yard: </span>
                     {formValues.has_yard ? "Yes, secure enclosed yard" : "No enclosed yard"}
                   </p>
+                  {isRenting && (
+                    <p className="text-foreground">
+                      <span className="text-muted-foreground">Landlord / HOA permission: </span>
+                      {formValues.landlord_permission ? "Confirmed permission" : "Pending confirmation"}
+                    </p>
+                  )}
                 </div>
               </div>
 
-              {/* Section 3: Experience & Care */}
+              {/* Section 3: Experience & Pets */}
               <div className="py-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Experience &amp; care
+                    Pet Experience &amp; Current Animals
                   </h3>
                   <button
                     type="button"
                     onClick={() => setCurrentStep("experience")}
-                    className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline"
+                    className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline cursor-pointer"
                   >
                     <Edit2 className="h-3 w-3" />
                     <span>Edit</span>
@@ -757,6 +1135,9 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                     <span className="text-muted-foreground">Experience level: </span>
                     {experienceLabel}
                   </p>
+                  <p className="text-xs text-muted-foreground">
+                    {formValues.pet_care_experience}
+                  </p>
                   <p className="text-foreground">
                     <span className="text-muted-foreground">Other pets in home: </span>
                     {formValues.has_other_pets
@@ -766,38 +1147,74 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                 </div>
               </div>
 
-              {/* Section 4: Your Plans */}
+              {/* Section 4: Daily Care & Vet Plan */}
               <div className="py-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Your plans for {dog.name}
+                    Daily Care &amp; Veterinary Plan
                   </h3>
                   <button
                     type="button"
                     onClick={() => setCurrentStep("plans")}
-                    className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline"
+                    className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline cursor-pointer"
                   >
                     <Edit2 className="h-3 w-3" />
                     <span>Edit</span>
                   </button>
                 </div>
-                <div className="text-sm text-foreground whitespace-pre-line leading-relaxed bg-muted/20 p-3.5 rounded-xl">
+                <div className="text-sm space-y-1">
+                  <p className="text-foreground">
+                    <span className="text-muted-foreground">Daily alone hours: </span>
+                    {formValues.daily_alone_hours} hours / day
+                  </p>
+                  <div>
+                    <span className="text-xs font-semibold text-muted-foreground">Care routine:</span>
+                    <p className="text-xs text-foreground bg-muted/20 p-2.5 rounded-lg mt-0.5">
+                      {formValues.daily_care_arrangements}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-xs font-semibold text-muted-foreground">Veterinary plan:</span>
+                    <p className="text-xs text-foreground bg-muted/20 p-2.5 rounded-lg mt-0.5">
+                      {formValues.emergency_vet_care_plan}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 5: Why Adopt */}
+              <div className="py-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Why adopt {dog.name}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep("plans")}
+                    className="inline-flex items-center gap-1 text-xs text-primary font-medium hover:underline cursor-pointer"
+                  >
+                    <Edit2 className="h-3 w-3" />
+                    <span>Edit</span>
+                  </button>
+                </div>
+                <div className="text-xs sm:text-sm text-foreground whitespace-pre-line leading-relaxed bg-muted/20 p-3 rounded-xl">
                   {formValues.reason_for_adopting}
                 </div>
               </div>
             </div>
 
-            {/* Submission Commitment Note */}
+            {/* Verification & Suitability Note */}
             <div className="rounded-xl border border-border/80 bg-muted/20 p-4 space-y-1.5 text-xs text-muted-foreground">
-              <p className="font-semibold text-foreground">
-                Ready to submit?
-              </p>
+              <div className="flex items-center gap-1.5 font-semibold text-foreground">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                <span>Household Suitability Assessment</span>
+              </div>
               <p className="leading-relaxed">
-                Your application will be submitted for review by PawConnect administrators and {dog.name}&apos;s caretaker.
+                By submitting, your household background will undergo an administrative suitability review. An adoption application cannot be approved until screening is complete and approved.
               </p>
             </div>
 
-            {/* Final Actions */}
+            {/* Actions */}
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
               <Button
                 type="button"
@@ -824,7 +1241,7 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                 ) : (
                   <>
                     <CheckCircle2 className="h-4 w-4" />
-                    <span>Submit Application</span>
+                    <span>Submit Application &amp; Screening</span>
                   </>
                 )}
               </Button>

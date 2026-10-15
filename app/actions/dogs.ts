@@ -164,7 +164,8 @@ export async function getUserDogsAction(): Promise<ActionResponse<DogWithImages[
  */
 export async function createDogAction(
   rawInput: DogSubmissionInput,
-  imageUrls: { path: string; url: string; isPrimary: boolean }[] = []
+  imageUrls: { path: string; url: string; isPrimary: boolean }[] = [],
+  video?: { url: string; path: string } | null
 ): Promise<ActionResponse<DogRecord>> {
   try {
     const { userId } = await auth();
@@ -184,7 +185,10 @@ export async function createDogAction(
     const adminSupabase = createAdminSupabaseClient();
     await ensureUserProfile();
 
-    const dogPayload = {
+    const videoUrl = video?.url || parsed.data.video_url || null;
+    const videoStoragePath = video?.path || parsed.data.video_storage_path || null;
+
+    const dogPayload: Record<string, unknown> = {
       owner_id: userId,
       name: parsed.data.name,
       breed: parsed.data.breed,
@@ -201,6 +205,11 @@ export async function createDogAction(
       location: parsed.data.location,
       status: DOG_STATUSES.PENDING,
     };
+
+    if (videoUrl) {
+      dogPayload.video_url = videoUrl;
+      dogPayload.video_storage_path = videoStoragePath;
+    }
 
     const { data: newDog, error: dogError } = await adminSupabase
       .from("dogs")
@@ -301,6 +310,8 @@ export async function updateDogAction(
     if (parsed.data.spayed_neutered !== undefined) updatePayload.spayed_neutered = parsed.data.spayed_neutered;
     if (parsed.data.special_needs !== undefined) updatePayload.special_needs = parsed.data.special_needs || null;
     if (parsed.data.location !== undefined) updatePayload.location = parsed.data.location;
+    if (parsed.data.video_url !== undefined) updatePayload.video_url = parsed.data.video_url || null;
+    if (parsed.data.video_storage_path !== undefined) updatePayload.video_storage_path = parsed.data.video_storage_path || null;
 
     const { data: updatedDog, error: updateError } = await adminSupabase
       .from("dogs")

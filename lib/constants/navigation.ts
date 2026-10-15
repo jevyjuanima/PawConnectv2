@@ -17,10 +17,13 @@ export const ROUTES = {
   DASHBOARD: "/dashboard",
   APPLICATIONS: "/my-applications",
   MY_DOGS: "/my-dogs",
+  MY_FOLLOWUPS: "/my-followups",
   NOTIFICATIONS: "/dashboard#notifications",
   ADMIN: "/admin",
   ADMIN_DOGS: "/admin/dogs",
   ADMIN_APPLICATIONS: "/admin/applications",
+  ADMIN_SCREENINGS: "/admin/screenings",
+  ADMIN_FOLLOWUPS: "/admin/follow-ups",
   ADMIN_USERS: "/admin/users",
   SIGN_IN: "/sign-in",
   SIGN_UP: "/sign-up",
@@ -37,25 +40,28 @@ export const GUEST_NAV_ITEMS: readonly NavLinkItem[] = [
 
 /**
  * Authenticated Normal User Navigation
- * Browse Dogs, Dashboard, My Applications, My Dogs, Rehome a Dog
+ * Browse Dogs, Dashboard, My Applications, Follow-ups, My Dogs, Rehome a Dog
  */
 export const USER_NAV_ITEMS: readonly NavLinkItem[] = [
   { href: ROUTES.DOGS, label: "Browse Dogs" },
   { href: ROUTES.DASHBOARD, label: "Dashboard", exact: true },
   { href: ROUTES.APPLICATIONS, label: "My Applications" },
+  { href: ROUTES.MY_FOLLOWUPS, label: "Follow-ups" },
   { href: ROUTES.MY_DOGS, label: "My Dogs" },
   { href: ROUTES.REHOME, label: "Rehome a Dog" },
 ] as const;
 
 /**
  * Authenticated Admin Navigation
- * Browse Dogs, Admin Dashboard, Dogs, Applications, Users
+ * Browse Dogs, Admin Dashboard, Dogs, Applications, Screenings, Follow-ups, Users
  */
 export const ADMIN_NAV_ITEMS: readonly NavLinkItem[] = [
   { href: ROUTES.DOGS, label: "Browse Dogs" },
-  { href: ROUTES.ADMIN, label: "Admin Dashboard", exact: true },
+  { href: ROUTES.ADMIN, label: "Overview", exact: true },
   { href: ROUTES.ADMIN_DOGS, label: "Dogs" },
   { href: ROUTES.ADMIN_APPLICATIONS, label: "Applications" },
+  { href: ROUTES.ADMIN_SCREENINGS, label: "Screenings" },
+  { href: ROUTES.ADMIN_FOLLOWUPS, label: "Follow-ups" },
   { href: ROUTES.ADMIN_USERS, label: "Users" },
 ] as const;
 

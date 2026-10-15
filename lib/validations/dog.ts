@@ -52,7 +52,10 @@ export const dogSubmissionSchema = z.object({
     .trim()
     .min(2, "Location is required")
     .max(100, "Location must not exceed 100 characters"),
+  video_url: z.string().url().optional().nullable().or(z.literal("")),
+  video_storage_path: z.string().optional().nullable().or(z.literal("")),
 });
+
 
 export type DogSubmissionInput = z.infer<typeof dogSubmissionSchema>;
 

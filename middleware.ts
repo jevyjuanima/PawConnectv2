@@ -5,6 +5,7 @@ const isProtectedRoute = createRouteMatcher([
   "/rehome(.*)",
   "/my-applications(.*)",
   "/my-dogs(.*)",
+  "/my-followups(.*)",
   "/dogs/(.*)/apply",
   "/admin(.*)",
 ]);

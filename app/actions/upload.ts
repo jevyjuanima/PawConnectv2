@@ -68,3 +68,109 @@ export async function uploadDogPhotoAction(
     return { success: false, error: message };
   }
 }
+
+export interface VideoUploadUrlResponse {
+  signedUrl: string;
+  storagePath: string;
+  publicUrl: string;
+  token?: string;
+}
+
+/**
+ * Generates a signed upload URL for dog introduction video (up to 50MB).
+ * Upload is performed directly from the browser to Supabase Storage via this URL,
+ * avoiding Next.js/Vercel payload limits and enabling accurate real-time upload progress.
+ */
+export async function createDogVideoUploadUrlAction(fileInfo: {
+  name: string;
+  size: number;
+  type: string;
+}): Promise<ActionResponse<VideoUploadUrlResponse>> {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return { success: false, error: "Authentication required to upload videos" };
+    }
+
+    const { validateDogVideoFile } = await import("@/lib/validations/upload");
+    const validation = validateDogVideoFile(fileInfo);
+    if (!validation.valid) {
+      return { success: false, error: validation.error || "Invalid video file" };
+    }
+
+    const { createAdminSupabaseClient } = await import("@/lib/supabase/admin");
+    const supabase = createAdminSupabaseClient();
+
+    const ext = fileInfo.name.split(".").pop()?.toLowerCase() || "mp4";
+    const cleanFileName = `video_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+    const storagePath = `dogs/${userId}/${cleanFileName}`;
+
+    const { data: signData, error: signError } = await supabase.storage
+      .from("dog-videos")
+      .createSignedUploadUrl(storagePath);
+
+    if (signError || !signData) {
+      return {
+        success: false,
+        error: signError?.message || "Failed to generate video upload destination",
+      };
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("dog-videos")
+      .getPublicUrl(storagePath);
+
+    return {
+      success: true,
+      data: {
+        signedUrl: signData.signedUrl,
+        storagePath: storagePath,
+        publicUrl: publicUrlData.publicUrl,
+        token: signData.token,
+      },
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to prepare video upload";
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Removes a staged or uploaded video from dog-videos bucket (only owner or admin).
+ */
+export async function deleteDogVideoAction(
+  storagePath: string
+): Promise<ActionResponse<void>> {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return { success: false, error: "Authentication required" };
+    }
+
+    // Ownership check: storage path starts with `dogs/${userId}/` or user is admin
+    const { isCurrentUserAdmin } = await import("@/lib/clerk/auth");
+    const isAdmin = await isCurrentUserAdmin();
+    const isOwner = storagePath.startsWith(`dogs/${userId}/`);
+
+    if (!isOwner && !isAdmin) {
+      return { success: false, error: "Unauthorized to delete this video" };
+    }
+
+    const { createAdminSupabaseClient } = await import("@/lib/supabase/admin");
+    const supabase = createAdminSupabaseClient();
+
+    const { error: delError } = await supabase.storage
+      .from("dog-videos")
+      .remove([storagePath]);
+
+    if (delError) {
+      return { success: false, error: delError.message };
+    }
+
+    return { success: true, data: undefined };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to delete video";
+    return { success: false, error: message };
+  }
+}
+

@@ -9,6 +9,8 @@ import {
   Dog as DogIcon,
   ArrowRight,
   ExternalLink,
+  ShieldCheck,
+  Check,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -32,7 +34,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cancelApplicationAction } from "@/app/actions/applications";
 import { formatAge, formatCapitalize, formatDate } from "@/lib/utils/format";
-import { ApplicationStatusBadge } from "@/components/shared/StatusBadges";
+import { ApplicationStatusBadge, ScreeningStatusBadge } from "@/components/shared/StatusBadges";
 import { APPLICATION_STATUSES } from "@/lib/constants/statuses";
 import type { ApplicationWithDetails } from "@/types";
 import { cn } from "@/lib/utils";
@@ -177,8 +179,11 @@ export function UserApplicationCard({
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2 self-start sm:self-auto">
+                <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
                   <ApplicationStatusBadge status={app.status} />
+                  {app.screening && (
+                    <ScreeningStatusBadge status={app.screening.status} />
+                  )}
                   {hasUnreadNotification && (
                     <span
                       title="New update available"
@@ -198,16 +203,17 @@ export function UserApplicationCard({
                 </p>
               </div>
 
-              {/* Staff Notes / Decision Reason */}
-              {app.admin_notes && (
-                <div className="rounded-xl border border-border/70 bg-muted/30 p-3 text-xs space-y-0.5">
-                  <p className="font-semibold text-foreground">Note from staff</p>
+              {/* Household Screening Notice if rejected */}
+              {app.screening?.rejection_reason && (
+                <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-xs space-y-0.5">
+                  <p className="font-semibold text-destructive">Household screening notice</p>
                   <p className="text-muted-foreground leading-relaxed">
-                    {app.admin_notes}
+                    {app.screening.rejection_reason}
                   </p>
                 </div>
               )}
 
+              {/* Application Decision feedback if rejected */}
               {app.rejection_reason && (
                 <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-xs space-y-0.5">
                   <p className="font-semibold text-destructive">Decision feedback</p>
@@ -278,11 +284,16 @@ export function UserApplicationCard({
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
         <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6">
           <DialogHeader className="space-y-1.5 border-b border-border/70 pb-4 text-left">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Adoption Questionnaire
+                Adoption Application
               </span>
-              <ApplicationStatusBadge status={app.status} />
+              <div className="flex flex-wrap items-center gap-1.5">
+                <ApplicationStatusBadge status={app.status} />
+                {app.screening && (
+                  <ScreeningStatusBadge status={app.screening.status} />
+                )}
+              </div>
             </div>
             <DialogTitle className="font-serif text-2xl font-normal text-foreground">
               Application for {dog.name}
@@ -296,6 +307,69 @@ export function UserApplicationCard({
           <div className="rounded-xl border border-border/70 bg-muted/20 p-3.5 text-xs text-foreground leading-relaxed">
             {statusGuidance}
           </div>
+
+          {/* Household Suitability Screening Summary (if present) */}
+          {app.screening && (
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+                    Household Suitability Screening
+                  </span>
+                </div>
+                <ScreeningStatusBadge status={app.screening.status} />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-foreground pt-1">
+                <div>
+                  <span className="text-muted-foreground">Household agreement: </span>
+                  <span className="font-medium text-emerald-700 dark:text-emerald-400">
+                    {app.screening.household_agreement ? "All members agree" : "Pending"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Daily alone time: </span>
+                  <span className="font-medium">{app.screening.daily_alone_hours} hrs / day</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Children in home: </span>
+                  <span>{app.screening.has_children ? app.screening.children_details || "Yes" : "No"}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Landlord permission: </span>
+                  <span>{app.screening.landlord_permission ? "Confirmed" : "N/A or Pending"}</span>
+                </div>
+              </div>
+
+              {app.screening.daily_care_arrangements && (
+                <div className="text-xs space-y-0.5 pt-1">
+                  <span className="font-semibold text-muted-foreground">Daily Care Arrangements:</span>
+                  <p className="text-foreground leading-relaxed bg-background/60 p-2.5 rounded-lg border border-border/50">
+                    {app.screening.daily_care_arrangements}
+                  </p>
+                </div>
+              )}
+
+              {app.screening.emergency_vet_care_plan && (
+                <div className="text-xs space-y-0.5 pt-1">
+                  <span className="font-semibold text-muted-foreground">Veterinary Care Plan:</span>
+                  <p className="text-foreground leading-relaxed bg-background/60 p-2.5 rounded-lg border border-border/50">
+                    {app.screening.emergency_vet_care_plan}
+                  </p>
+                </div>
+              )}
+
+              {app.screening.rejection_reason && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-2.5 text-xs space-y-1">
+                  <p className="font-semibold text-destructive">Screening feedback:</p>
+                  <p className="text-foreground leading-relaxed">
+                    {app.screening.rejection_reason}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Questionnaire Answers */}
           <div className="space-y-4 text-xs sm:text-sm divide-y divide-border/60">
@@ -349,18 +423,6 @@ export function UserApplicationCard({
                 {app.reason_for_adopting}
               </div>
             </div>
-
-            {/* Staff Notes if any */}
-            {app.admin_notes && (
-              <div className="space-y-1.5 pt-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-primary">
-                  Staff review notes
-                </p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {app.admin_notes}
-                </p>
-              </div>
-            )}
 
             {/* Rejection reason if any */}
             {app.rejection_reason && (

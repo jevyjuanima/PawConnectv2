@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
   CheckCircle2,
@@ -13,6 +14,7 @@ import {
   Dog as DogIcon,
   Loader2,
   FileCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,10 +27,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { reviewApplicationAction } from "@/app/actions/admin";
 import { formatDate } from "@/lib/utils/format";
-import { ApplicationStatusBadge } from "@/components/shared/StatusBadges";
-import { APPLICATION_STATUSES } from "@/lib/constants/statuses";
+import { ApplicationStatusBadge, ScreeningStatusBadge } from "@/components/shared/StatusBadges";
+import { APPLICATION_STATUSES, SCREENING_STATUSES } from "@/lib/constants/statuses";
 import type { ApplicationWithDetails } from "@/types";
 
 interface AdminApplicationRowProps {
@@ -161,11 +174,14 @@ export function AdminApplicationRow({
             )}
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-base font-bold text-foreground">
                 Application for {dog.name}
               </h3>
               <ApplicationStatusBadge status={app.status} />
+              {app.screening && (
+                <ScreeningStatusBadge status={app.screening.status} />
+              )}
             </div>
             <p className="text-xs text-muted-foreground">
               Applicant: <strong className="text-foreground">{applicant?.first_name || "User"} {applicant?.last_name || ""}</strong> ({applicant?.email})
@@ -258,6 +274,24 @@ export function AdminApplicationRow({
         </div>
       )}
 
+      {/* Household Screening Warning if not approved */}
+      {app.screening && app.screening.status !== SCREENING_STATUSES.APPROVED && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600" />
+            <span>
+              Household suitability screening is currently <strong>{app.screening.status}</strong>. Screening must be approved before approving this adoption match.
+            </span>
+          </div>
+          <Link
+            href="/admin/screenings"
+            className="font-semibold underline underline-offset-2 hover:text-amber-950 shrink-0 self-start sm:self-auto"
+          >
+            Review Screening &rarr;
+          </Link>
+        </div>
+      )}
+
       {/* Action Workflow Controls */}
       <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t">
         {/* Pending -> Start Review */}
@@ -266,7 +300,7 @@ export function AdminApplicationRow({
             size="sm"
             onClick={handleStartReview}
             disabled={processing}
-            className="gap-1.5 text-xs shadow-xs"
+            className="gap-1.5 text-xs shadow-xs cursor-pointer"
           >
             {processing ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -328,7 +362,16 @@ export function AdminApplicationRow({
             <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
               <DialogTrigger
                 render={
-                  <Button size="sm" className="text-xs gap-1.5 shadow-xs cursor-pointer">
+                  <Button
+                    size="sm"
+                    disabled={Boolean(app.screening && app.screening.status !== SCREENING_STATUSES.APPROVED)}
+                    title={
+                      app.screening && app.screening.status !== SCREENING_STATUSES.APPROVED
+                        ? `Household screening is ${app.screening.status}. Must be approved first.`
+                        : undefined
+                    }
+                    className="text-xs gap-1.5 shadow-xs cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                  >
                     <CheckCircle2 className="h-3.5 w-3.5" />
                     Approve Match
                   </Button>
@@ -365,21 +408,43 @@ export function AdminApplicationRow({
           </>
         )}
 
-        {/* Approved -> Finalize Adoption */}
+        {/* Approved -> Finalize Adoption with Confirmation */}
         {app.status === APPLICATION_STATUSES.APPROVED && (
-          <Button
-            size="sm"
-            onClick={handleFinalizeAdoption}
-            disabled={processing}
-            className="gap-1.5 text-xs shadow-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-          >
-            {processing ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <FileCheck className="h-3.5 w-3.5" />
-            )}
-            Complete Adoption
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger
+              render={
+                <Button
+                  size="sm"
+                  disabled={processing}
+                  className="gap-1.5 text-xs shadow-xs bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+                >
+                  {processing ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <FileCheck className="h-3.5 w-3.5" />
+                  )}
+                  Complete Adoption
+                </Button>
+              }
+            />
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Finalize Adoption for {dog.name}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will mark {dog.name} as adopted, complete this adoption application, and automatically schedule 12 monthly post-adoption welfare monitoring follow-ups for the adopter.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleFinalizeAdoption}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  Confirm Adoption Completion
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         )}
       </div>
     </div>
