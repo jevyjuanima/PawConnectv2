@@ -46,19 +46,20 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE
 SET search_path = public, pg_catalog;
 
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
   NEW.updated_at = NOW();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql
+SET search_path = public, pg_catalog;
 
 -- Protect profiles role from privilege escalation:
 -- 1. Only admins can assign or update role = 'admin'.
 -- 2. Non-admins cannot alter their own or others' clerk_id or profile id.
 -- 3. Non-admins cannot update an administrator's profile record.
-CREATE OR REPLACE FUNCTION protect_profile_role()
+CREATE OR REPLACE FUNCTION public.protect_profile_role()
 RETURNS TRIGGER AS $$
 BEGIN
   IF NOT public.is_admin() THEN
@@ -87,7 +88,7 @@ DROP TRIGGER IF EXISTS trg_protect_profile_role ON public.profiles;
 CREATE TRIGGER trg_protect_profile_role
   BEFORE INSERT OR UPDATE ON public.profiles
   FOR EACH ROW
-  EXECUTE FUNCTION protect_profile_role();
+  EXECUTE FUNCTION public.protect_profile_role();
 
 -- ------------------------------------------------------------
 -- 1. EXTEND DOGS TABLE FOR VIDEO INTRODUCTION
@@ -99,7 +100,7 @@ ALTER TABLE public.dogs
   ADD COLUMN IF NOT EXISTS video_uploaded_at TIMESTAMPTZ;
 
 -- Database Trigger: Ensure video_storage_path matches the owner's authorized path
-CREATE OR REPLACE FUNCTION protect_dog_video_path()
+CREATE OR REPLACE FUNCTION public.protect_dog_video_path()
 RETURNS TRIGGER AS $$
 BEGIN
   IF NEW.video_storage_path IS NOT NULL AND NEW.video_storage_path != '' THEN
@@ -116,7 +117,7 @@ DROP TRIGGER IF EXISTS trg_protect_dog_video_path ON public.dogs;
 CREATE TRIGGER trg_protect_dog_video_path
   BEFORE INSERT OR UPDATE OF video_storage_path ON public.dogs
   FOR EACH ROW
-  EXECUTE FUNCTION protect_dog_video_path();
+  EXECUTE FUNCTION public.protect_dog_video_path();
 
 -- ------------------------------------------------------------
 -- 2. STORAGE CONFIGURATION & POLICIES (Clerk-Aware Identity Matching)
@@ -282,7 +283,9 @@ CREATE POLICY "Owners or admin can delete dog photos"
 CREATE TABLE IF NOT EXISTS public.household_screenings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   application_id UUID NOT NULL REFERENCES public.adoption_applications(id) ON DELETE CASCADE,
-  applicant_id TEXT NOT NULL REFERENCES public.profiles(clerk_id) ON DELETE CASCADE,
+  -- applicant_id and reviewer_id FK constraints are created explicitly below with named constraints
+  -- so that PostgREST can embed using profiles!household_screenings_applicant_id_fkey etc.
+  applicant_id TEXT NOT NULL,
   dog_id UUID NOT NULL REFERENCES public.dogs(id) ON DELETE CASCADE,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'under_review', 'approved', 'rejected')),
   
@@ -301,7 +304,8 @@ CREATE TABLE IF NOT EXISTS public.household_screenings (
   screening_consent BOOLEAN NOT NULL DEFAULT false,
   
   -- Staff Review Outcome (visible to applicant)
-  reviewer_id TEXT REFERENCES public.profiles(clerk_id),
+  -- reviewer_id FK is also created explicitly below with ON DELETE SET NULL
+  reviewer_id TEXT,
   reviewed_at TIMESTAMPTZ,
   rejection_reason TEXT,
   
@@ -312,24 +316,54 @@ CREATE TABLE IF NOT EXISTS public.household_screenings (
 -- Ensure explicit foreign key constraint names for PostgREST resource embedding
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'household_screenings_applicant_id_fkey'
+    SELECT 1 FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey)
+    JOIN pg_class ft ON ft.oid = c.confrelid
+    JOIN pg_namespace fn ON fn.oid = ft.relnamespace
+    JOIN pg_attribute fa ON fa.attrelid = c.confrelid AND fa.attnum = ANY(c.confkey)
+    WHERE n.nspname = 'public'
+      AND t.relname = 'household_screenings'
+      AND c.conname = 'household_screenings_applicant_id_fkey'
+      AND a.attname = 'applicant_id'
+      AND fn.nspname = 'public'
+      AND ft.relname = 'profiles'
+      AND fa.attname = 'clerk_id'
+      AND c.confdeltype = 'c'
   ) THEN
+    ALTER TABLE public.household_screenings
+      DROP CONSTRAINT IF EXISTS household_screenings_applicant_id_fkey;
     ALTER TABLE public.household_screenings
       ADD CONSTRAINT household_screenings_applicant_id_fkey
       FOREIGN KEY (applicant_id) REFERENCES public.profiles(clerk_id) ON DELETE CASCADE;
   END IF;
-EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'household_screenings_reviewer_id_fkey'
+    SELECT 1 FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey)
+    JOIN pg_class ft ON ft.oid = c.confrelid
+    JOIN pg_namespace fn ON fn.oid = ft.relnamespace
+    JOIN pg_attribute fa ON fa.attrelid = c.confrelid AND fa.attnum = ANY(c.confkey)
+    WHERE n.nspname = 'public'
+      AND t.relname = 'household_screenings'
+      AND c.conname = 'household_screenings_reviewer_id_fkey'
+      AND a.attname = 'reviewer_id'
+      AND fn.nspname = 'public'
+      AND ft.relname = 'profiles'
+      AND fa.attname = 'clerk_id'
+      AND c.confdeltype = 'n'
   ) THEN
+    ALTER TABLE public.household_screenings
+      DROP CONSTRAINT IF EXISTS household_screenings_reviewer_id_fkey;
     ALTER TABLE public.household_screenings
       ADD CONSTRAINT household_screenings_reviewer_id_fkey
       FOREIGN KEY (reviewer_id) REFERENCES public.profiles(clerk_id) ON DELETE SET NULL;
   END IF;
-EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_uq_screenings_application_id ON public.household_screenings(application_id);
@@ -341,10 +375,10 @@ DROP TRIGGER IF EXISTS set_household_screenings_updated_at ON public.household_s
 CREATE TRIGGER set_household_screenings_updated_at
   BEFORE UPDATE ON public.household_screenings
   FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
+  EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Verify household screening ownership matches the referenced adoption application
-CREATE OR REPLACE FUNCTION validate_household_screening_ownership()
+CREATE OR REPLACE FUNCTION public.validate_household_screening_ownership()
 RETURNS TRIGGER AS $$
 DECLARE
   v_app_applicant_id TEXT;
@@ -375,7 +409,7 @@ DROP TRIGGER IF EXISTS trg_validate_household_screening_ownership ON public.hous
 CREATE TRIGGER trg_validate_household_screening_ownership
   BEFORE INSERT OR UPDATE ON public.household_screenings
   FOR EACH ROW
-  EXECUTE FUNCTION validate_household_screening_ownership();
+  EXECUTE FUNCTION public.validate_household_screening_ownership();
 
 -- RLS for household_screenings
 ALTER TABLE public.household_screenings ENABLE ROW LEVEL SECURITY;
@@ -448,7 +482,7 @@ CREATE POLICY "Only admins can delete screening"
   USING (public.is_admin());
 
 -- Database-level immutability enforcement: Prevent non-admins from modifying decisions or identities on INSERT or UPDATE
-CREATE OR REPLACE FUNCTION protect_household_screening_fields()
+CREATE OR REPLACE FUNCTION public.protect_household_screening_fields()
 RETURNS TRIGGER AS $$
 BEGIN
   IF NOT public.is_admin() THEN
@@ -482,7 +516,7 @@ DROP TRIGGER IF EXISTS trg_protect_household_screening_fields ON public.househol
 CREATE TRIGGER trg_protect_household_screening_fields
   BEFORE INSERT OR UPDATE ON public.household_screenings
   FOR EACH ROW
-  EXECUTE FUNCTION protect_household_screening_fields();
+  EXECUTE FUNCTION public.protect_household_screening_fields();
 
 -- ------------------------------------------------------------
 -- 4. PRIVATE HOUSEHOLD SCREENING ADMIN REVIEWS (Separated for column privacy)
@@ -502,7 +536,7 @@ DROP TRIGGER IF EXISTS set_household_screening_reviews_updated_at ON public.hous
 CREATE TRIGGER set_household_screening_reviews_updated_at
   BEFORE UPDATE ON public.household_screening_reviews
   FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
+  EXECUTE FUNCTION public.update_updated_at_column();
 
 ALTER TABLE public.household_screening_reviews ENABLE ROW LEVEL SECURITY;
 
@@ -523,7 +557,9 @@ CREATE TABLE IF NOT EXISTS public.post_adoption_followups (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   application_id UUID NOT NULL REFERENCES public.adoption_applications(id) ON DELETE CASCADE,
   dog_id UUID NOT NULL REFERENCES public.dogs(id) ON DELETE CASCADE,
-  adopter_id TEXT NOT NULL REFERENCES public.profiles(clerk_id) ON DELETE CASCADE,
+  -- adopter_id and reviewer_id FK constraints are created explicitly below with named constraints
+  -- so that PostgREST can embed using profiles!post_adoption_followups_adopter_id_fkey etc.
+  adopter_id TEXT NOT NULL,
   month_number INTEGER NOT NULL CHECK (month_number >= 1),
   due_date DATE NOT NULL,
   status TEXT NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming', 'due', 'submitted', 'reviewed', 'needs_follow_up')),
@@ -539,7 +575,8 @@ CREATE TABLE IF NOT EXISTS public.post_adoption_followups (
   photo_storage_path TEXT,
   
   -- Staff Review Outcome (visible to adopter)
-  reviewer_id TEXT REFERENCES public.profiles(clerk_id),
+  -- reviewer_id FK is also created explicitly below with ON DELETE SET NULL
+  reviewer_id TEXT,
   reviewed_at TIMESTAMPTZ,
   requires_additional_followup BOOLEAN DEFAULT false,
   additional_followup_instructions TEXT,
@@ -551,24 +588,54 @@ CREATE TABLE IF NOT EXISTS public.post_adoption_followups (
 -- Ensure explicit foreign key constraint names for PostgREST resource embedding
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'post_adoption_followups_adopter_id_fkey'
+    SELECT 1 FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey)
+    JOIN pg_class ft ON ft.oid = c.confrelid
+    JOIN pg_namespace fn ON fn.oid = ft.relnamespace
+    JOIN pg_attribute fa ON fa.attrelid = c.confrelid AND fa.attnum = ANY(c.confkey)
+    WHERE n.nspname = 'public'
+      AND t.relname = 'post_adoption_followups'
+      AND c.conname = 'post_adoption_followups_adopter_id_fkey'
+      AND a.attname = 'adopter_id'
+      AND fn.nspname = 'public'
+      AND ft.relname = 'profiles'
+      AND fa.attname = 'clerk_id'
+      AND c.confdeltype = 'c'
   ) THEN
+    ALTER TABLE public.post_adoption_followups
+      DROP CONSTRAINT IF EXISTS post_adoption_followups_adopter_id_fkey;
     ALTER TABLE public.post_adoption_followups
       ADD CONSTRAINT post_adoption_followups_adopter_id_fkey
       FOREIGN KEY (adopter_id) REFERENCES public.profiles(clerk_id) ON DELETE CASCADE;
   END IF;
-EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint WHERE conname = 'post_adoption_followups_reviewer_id_fkey'
+    SELECT 1 FROM pg_constraint c
+    JOIN pg_class t ON t.oid = c.conrelid
+    JOIN pg_namespace n ON n.oid = t.relnamespace
+    JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey)
+    JOIN pg_class ft ON ft.oid = c.confrelid
+    JOIN pg_namespace fn ON fn.oid = ft.relnamespace
+    JOIN pg_attribute fa ON fa.attrelid = c.confrelid AND fa.attnum = ANY(c.confkey)
+    WHERE n.nspname = 'public'
+      AND t.relname = 'post_adoption_followups'
+      AND c.conname = 'post_adoption_followups_reviewer_id_fkey'
+      AND a.attname = 'reviewer_id'
+      AND fn.nspname = 'public'
+      AND ft.relname = 'profiles'
+      AND fa.attname = 'clerk_id'
+      AND c.confdeltype = 'n'
   ) THEN
+    ALTER TABLE public.post_adoption_followups
+      DROP CONSTRAINT IF EXISTS post_adoption_followups_reviewer_id_fkey;
     ALTER TABLE public.post_adoption_followups
       ADD CONSTRAINT post_adoption_followups_reviewer_id_fkey
       FOREIGN KEY (reviewer_id) REFERENCES public.profiles(clerk_id) ON DELETE SET NULL;
   END IF;
-EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_uq_app_followup_month ON public.post_adoption_followups(application_id, month_number);
@@ -582,10 +649,10 @@ DROP TRIGGER IF EXISTS set_post_adoption_followups_updated_at ON public.post_ado
 CREATE TRIGGER set_post_adoption_followups_updated_at
   BEFORE UPDATE ON public.post_adoption_followups
   FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
+  EXECUTE FUNCTION public.update_updated_at_column();
 
 -- Verify follow-up ownership and application completion status
-CREATE OR REPLACE FUNCTION validate_post_adoption_followup_ownership()
+CREATE OR REPLACE FUNCTION public.validate_post_adoption_followup_ownership()
 RETURNS TRIGGER AS $$
 DECLARE
   v_app_applicant_id TEXT;
@@ -621,7 +688,7 @@ DROP TRIGGER IF EXISTS trg_validate_post_adoption_followup_ownership ON public.p
 CREATE TRIGGER trg_validate_post_adoption_followup_ownership
   BEFORE INSERT OR UPDATE ON public.post_adoption_followups
   FOR EACH ROW
-  EXECUTE FUNCTION validate_post_adoption_followup_ownership();
+  EXECUTE FUNCTION public.validate_post_adoption_followup_ownership();
 
 -- RLS for post_adoption_followups
 ALTER TABLE public.post_adoption_followups ENABLE ROW LEVEL SECURITY;
@@ -673,7 +740,7 @@ CREATE POLICY "Only admins can delete followups"
   USING (public.is_admin());
 
 -- Database-level report tampering protection & status transition enforcement
-CREATE OR REPLACE FUNCTION protect_post_adoption_followup_fields()
+CREATE OR REPLACE FUNCTION public.protect_post_adoption_followup_fields()
 RETURNS TRIGGER AS $$
 BEGIN
   IF NOT public.is_admin() THEN
@@ -753,7 +820,7 @@ DROP TRIGGER IF EXISTS trg_protect_post_adoption_followup_fields ON public.post_
 CREATE TRIGGER trg_protect_post_adoption_followup_fields
   BEFORE INSERT OR UPDATE ON public.post_adoption_followups
   FOR EACH ROW
-  EXECUTE FUNCTION protect_post_adoption_followup_fields();
+  EXECUTE FUNCTION public.protect_post_adoption_followup_fields();
 
 -- ------------------------------------------------------------
 -- 6. PRIVATE POST-ADOPTION FOLLOW-UP ADMIN REVIEWS (Separated for column privacy)
@@ -775,7 +842,7 @@ DROP TRIGGER IF EXISTS set_post_adoption_followup_reviews_updated_at ON public.p
 CREATE TRIGGER set_post_adoption_followup_reviews_updated_at
   BEFORE UPDATE ON public.post_adoption_followup_reviews
   FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
+  EXECUTE FUNCTION public.update_updated_at_column();
 
 ALTER TABLE public.post_adoption_followup_reviews ENABLE ROW LEVEL SECURITY;
 
