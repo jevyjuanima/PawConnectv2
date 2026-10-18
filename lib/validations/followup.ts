@@ -26,6 +26,7 @@ export const followupReportSchema = z.object({
   problems_concerns: z.string().trim().max(1000).optional().nullable(),
   photo_url: z.string().url().optional().nullable().or(z.literal("")),
   photo_storage_path: z.string().optional().nullable().or(z.literal("")),
+  video_storage_path: z.string().optional().nullable().or(z.literal("")),
 });
 
 export type FollowupReportInput = z.infer<typeof followupReportSchema>;

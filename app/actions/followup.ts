@@ -153,6 +153,15 @@ export async function submitFollowUpReportAction(
       }
     }
 
+    if (parsed.data.video_storage_path) {
+      if (!parsed.data.video_storage_path.startsWith(`dogs/${userId}/`)) {
+        return {
+          success: false,
+          error: "Unauthorized video storage path: must belong to the adopter",
+        };
+      }
+    }
+
     const updatePayload = {
       submitted_at: new Date().toISOString(),
       general_health: parsed.data.general_health,
@@ -162,6 +171,7 @@ export async function submitFollowUpReportAction(
       problems_concerns: parsed.data.problems_concerns || null,
       photo_url: parsed.data.photo_url || null,
       photo_storage_path: parsed.data.photo_storage_path || null,
+      video_storage_path: parsed.data.video_storage_path || null,
       status: FOLLOWUP_STATUSES.SUBMITTED,
       updated_at: new Date().toISOString(),
     };

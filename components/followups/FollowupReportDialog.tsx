@@ -16,6 +16,8 @@ import {
   Stethoscope,
   Home,
   AlertTriangle,
+  Video,
+  PlayCircle,
 } from "lucide-react";
 import {
   Dialog,
@@ -35,8 +37,8 @@ import {
   type FollowupReportInput,
 } from "@/lib/validations/followup";
 import { submitFollowUpReportAction } from "@/app/actions/followup";
-import { uploadDogPhotoAction } from "@/app/actions/upload";
-import { validateDogImageFile } from "@/lib/validations/upload";
+import { uploadDogPhotoAction, createDogVideoUploadUrlAction } from "@/app/actions/upload";
+import { validateDogImageFile, validateDogVideoFile, VIDEO_UPLOAD_LIMITS } from "@/lib/validations/upload";
 import type { FollowupWithDetails } from "@/types";
 
 interface FollowupReportDialogProps {
@@ -56,6 +58,10 @@ export function FollowupReportDialog({
   const [photoUploading, setPhotoUploading] = React.useState(false);
   const [photoUrl, setPhotoUrl] = React.useState<string>(followup?.photo_url || "");
   const [photoPath, setPhotoPath] = React.useState<string>(followup?.photo_storage_path || "");
+  const [videoPath, setVideoPath] = React.useState<string>(followup?.video_storage_path || "");
+  const [videoFileName, setVideoFileName] = React.useState<string>("");
+  const [videoUploading, setVideoUploading] = React.useState(false);
+  const [videoUploadProgress, setVideoUploadProgress] = React.useState(0);
   const [formError, setFormError] = React.useState<string | null>(null);
 
   const {
@@ -75,6 +81,7 @@ export function FollowupReportDialog({
       problems_concerns: followup?.problems_concerns || "",
       photo_url: followup?.photo_url || "",
       photo_storage_path: followup?.photo_storage_path || "",
+      video_storage_path: followup?.video_storage_path || "",
     },
   });
 
@@ -89,9 +96,13 @@ export function FollowupReportDialog({
         problems_concerns: followup.problems_concerns || "",
         photo_url: followup.photo_url || "",
         photo_storage_path: followup.photo_storage_path || "",
+        video_storage_path: followup.video_storage_path || "",
       });
       setPhotoUrl(followup.photo_url || "");
       setPhotoPath(followup.photo_storage_path || "");
+      setVideoPath(followup.video_storage_path || "");
+      setVideoFileName("");
+      setVideoUploadProgress(0);
       setFormError(null);
     }
   }, [followup, reset]);
@@ -142,6 +153,87 @@ export function FollowupReportDialog({
     setValue("photo_storage_path", "");
   };
 
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validation = validateDogVideoFile({
+      name: file.name,
+      size: file.size,
+      type: file.type,
+    });
+
+    if (!validation.valid) {
+      toast.error(validation.error || "Invalid video file");
+      e.target.value = "";
+      return;
+    }
+
+    setVideoUploading(true);
+    setVideoUploadProgress(0);
+    setVideoFileName(file.name);
+
+    try {
+      // Step 1: Get a signed upload URL from the server
+      const urlRes = await createDogVideoUploadUrlAction({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+      });
+
+      if (!urlRes.success || !urlRes.data) {
+        toast.error(urlRes.error || "Failed to prepare video upload");
+        setVideoUploading(false);
+        setVideoFileName("");
+        e.target.value = "";
+        return;
+      }
+
+      const { signedUrl, storagePath } = urlRes.data;
+
+      // Step 2: Upload directly to Supabase Storage via XHR (enables progress)
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", signedUrl);
+        xhr.setRequestHeader("Content-Type", file.type);
+        xhr.upload.onprogress = (evt) => {
+          if (evt.lengthComputable) {
+            setVideoUploadProgress(Math.round((evt.loaded / evt.total) * 100));
+          }
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(`Upload failed with status ${xhr.status}`));
+          }
+        };
+        xhr.onerror = () => reject(new Error("Network error during video upload"));
+        xhr.send(file);
+      });
+
+      setVideoPath(storagePath);
+      setValue("video_storage_path", storagePath);
+      setVideoUploadProgress(100);
+      toast.success("Video attached successfully");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Video upload failed");
+      setVideoPath("");
+      setVideoFileName("");
+      setValue("video_storage_path", "");
+    } finally {
+      setVideoUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleRemoveVideo = () => {
+    setVideoPath("");
+    setVideoFileName("");
+    setVideoUploadProgress(0);
+    setValue("video_storage_path", "");
+  };
+
   const onSubmit = async (values: FollowupReportInput) => {
     setSubmitting(true);
     setFormError(null);
@@ -151,6 +243,7 @@ export function FollowupReportDialog({
         ...values,
         photo_url: photoUrl || null,
         photo_storage_path: photoPath || null,
+        video_storage_path: videoPath || null,
       });
 
       if (!res.success) {
@@ -332,7 +425,7 @@ export function FollowupReportDialog({
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   onChange={handlePhotoUpload}
-                  disabled={photoUploading}
+                  disabled={photoUploading || videoUploading}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
                   aria-label="Upload recent dog photo"
                 />
@@ -353,13 +446,75 @@ export function FollowupReportDialog({
             )}
           </div>
 
+          {/* 7. Optional Dog Welfare Video */}
+          <div className="space-y-2.5 pt-1">
+            <Label className="text-sm font-medium text-foreground">
+              Short video of {dogName} <span className="text-xs font-normal text-muted-foreground">(optional)</span>
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Upload a short video clip showing {dogName}&apos;s current condition, behaviour, or daily routine. MP4 or WebM, up to {VIDEO_UPLOAD_LIMITS.MAX_FILE_SIZE_LABEL}.
+            </p>
+
+            {videoPath ? (
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-emerald-600/40 bg-emerald-500/5">
+                <PlayCircle className="h-8 w-8 text-emerald-600 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-foreground truncate">
+                    {videoFileName || "Video attached"}
+                  </p>
+                  <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                    Uploaded · ready to submit
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRemoveVideo}
+                  className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                  title="Remove video"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : videoUploading ? (
+              <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span>Uploading video... {videoUploadProgress}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-primary transition-all duration-200 rounded-full"
+                    style={{ width: `${videoUploadProgress}%` }}
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground truncate">{videoFileName}</p>
+              </div>
+            ) : (
+              <div className="relative border border-dashed border-border/80 rounded-xl p-4 text-center hover:border-primary/50 transition-colors bg-muted/10 max-w-sm">
+                <input
+                  type="file"
+                  accept="video/mp4,video/webm"
+                  onChange={handleVideoUpload}
+                  disabled={videoUploading || photoUploading}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                  aria-label="Upload follow-up dog video"
+                />
+                <div className="flex flex-col items-center justify-center space-y-1.5 pointer-events-none">
+                  <Video className="h-5 w-5 text-muted-foreground" />
+                  <p className="text-xs font-medium text-foreground">Attach a short video clip</p>
+                  <p className="text-[11px] text-muted-foreground">MP4 or WebM · up to {VIDEO_UPLOAD_LIMITS.MAX_FILE_SIZE_LABEL}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
           <DialogFooter className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-border/70">
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => onOpenChange(false)}
-              disabled={submitting}
+              disabled={submitting || photoUploading || videoUploading}
               className="w-full sm:w-auto"
             >
               Cancel
@@ -367,7 +522,7 @@ export function FollowupReportDialog({
             <Button
               type="submit"
               size="sm"
-              disabled={submitting || photoUploading}
+              disabled={submitting || photoUploading || videoUploading}
               className="gap-2 font-semibold w-full sm:w-auto"
             >
               {submitting ? (

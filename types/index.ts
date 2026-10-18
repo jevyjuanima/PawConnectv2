@@ -143,6 +143,7 @@ export interface PostAdoptionFollowupRecord {
   problems_concerns: string | null;
   photo_url: string | null;
   photo_storage_path: string | null;
+  video_storage_path: string | null;
   reviewer_id: string | null;
   reviewed_at: string | null;
   admin_notes: string | null;

@@ -469,7 +469,6 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                     <Checkbox
                       id="has_children"
                       checked={field.value}
-                      onCheckedChange={field.onChange}
                       className="mt-0.5"
                     />
                     <div className="space-y-0.5">
@@ -521,7 +520,6 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                     <Checkbox
                       id="household_agreement"
                       checked={field.value}
-                      onCheckedChange={field.onChange}
                       className="mt-0.5"
                     />
                     <div className="space-y-0.5">
@@ -625,7 +623,6 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                   <Checkbox
                     id="has_yard"
                     checked={field.value}
-                    onCheckedChange={field.onChange}
                     className="mt-0.5"
                   />
                   <div className="space-y-0.5">
@@ -659,7 +656,6 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                       <Checkbox
                         id="landlord_permission"
                         checked={Boolean(field.value)}
-                        onCheckedChange={field.onChange}
                         className="mt-0.5"
                       />
                       <div className="space-y-0.5">
@@ -792,7 +788,6 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                   <Checkbox
                     id="has_other_pets"
                     checked={field.value}
-                    onCheckedChange={field.onChange}
                     className="mt-0.5"
                   />
                   <div className="space-y-0.5">
@@ -982,7 +977,6 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                     <Checkbox
                       id="screening_consent"
                       checked={field.value}
-                      onCheckedChange={field.onChange}
                       className="mt-0.5"
                     />
                     <div className="space-y-0.5">

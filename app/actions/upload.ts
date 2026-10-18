@@ -175,3 +175,47 @@ export async function deleteDogVideoAction(
   }
 }
 
+/**
+ * Generates a short-lived signed playback URL for a follow-up video in the
+ * private dog-videos bucket.  Can be called by the video owner or an admin.
+ * Returns a 1-hour signed URL — never a permanent public URL.
+ */
+export async function createFollowupVideoSignedUrlAction(
+  storagePath: string
+): Promise<ActionResponse<{ signedUrl: string }>> {
+  try {
+    const { userId } = await auth();
+    if (!userId) {
+      return { success: false, error: "Authentication required" };
+    }
+
+    if (!storagePath || !storagePath.startsWith("dogs/")) {
+      return { success: false, error: "Invalid storage path" };
+    }
+
+    // Ownership check: only the path owner or an admin may request a signed URL
+    const { isCurrentUserAdmin } = await import("@/lib/clerk/auth");
+    const isAdmin = await isCurrentUserAdmin();
+    const isOwner = storagePath.startsWith(`dogs/${userId}/`);
+
+    if (!isOwner && !isAdmin) {
+      return { success: false, error: "Unauthorized: you may only access your own follow-up videos" };
+    }
+
+    const { createAdminSupabaseClient } = await import("@/lib/supabase/admin");
+    const supabase = createAdminSupabaseClient();
+
+    const { data, error } = await supabase.storage
+      .from("dog-videos")
+      .createSignedUrl(storagePath, 3600); // 1-hour expiry
+
+    if (error || !data?.signedUrl) {
+      return { success: false, error: error?.message || "Failed to generate signed video URL" };
+    }
+
+    return { success: true, data: { signedUrl: data.signedUrl } };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Failed to generate video URL";
+    return { success: false, error: message };
+  }
+}

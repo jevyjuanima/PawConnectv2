@@ -16,8 +16,10 @@ import {
   ChevronRight,
   Eye,
   Camera,
+  Video,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { FollowupVideoPlayer } from "@/components/followups/FollowupVideoPlayer";
 import {
   Dialog,
   DialogContent,
@@ -185,9 +187,17 @@ export function UserFollowupList({ followups: initialFollowups }: UserFollowupLi
                             <span>Due: {formatDate(item.due_date)}</span>
                           </div>
                           {item.submitted_at && (
-                            <p className="text-[11px] text-muted-foreground">
-                              Submitted: {formatDate(item.submitted_at)}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-[11px] text-muted-foreground">
+                                Submitted: {formatDate(item.submitted_at)}
+                              </p>
+                              {item.video_storage_path && (
+                                <span className="inline-flex items-center gap-1 text-[10px] text-primary font-medium">
+                                  <Video className="h-3 w-3" />
+                                  <span>Video</span>
+                                </span>
+                              )}
+                            </div>
                           )}
                         </div>
 
@@ -336,6 +346,15 @@ export function UserFollowupList({ followups: initialFollowups }: UserFollowupLi
                       className="object-cover"
                     />
                   </div>
+                </div>
+              )}
+
+              {selectedForView.video_storage_path && (
+                <div className="space-y-2 pt-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Attached Video Clip
+                  </p>
+                  <FollowupVideoPlayer storagePath={selectedForView.video_storage_path} />
                 </div>
               )}
             </div>

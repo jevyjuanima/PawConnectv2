@@ -14,10 +14,12 @@ import {
   FileCheck,
   Loader2,
   Camera,
+  Video,
   Eye,
   MessageSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FollowupVideoPlayer } from "@/components/followups/FollowupVideoPlayer";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -147,6 +149,12 @@ export function AdminFollowupRow({
           {followup.submitted_at && (
             <span className="text-emerald-700 dark:text-emerald-400 font-medium">
               Reported {formatDate(followup.submitted_at)}
+            </span>
+          )}
+          {followup.video_storage_path && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-primary/10 text-primary border border-primary/20">
+              <Video className="h-3 w-3" />
+              <span>Video</span>
             </span>
           )}
         </div>
@@ -293,6 +301,21 @@ export function AdminFollowupRow({
                     </div>
                   </div>
                 )}
+
+                {/* Attached Dog Video or Informative Empty State */}
+                <div className="space-y-2 pt-3">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Attached Dog Video
+                  </p>
+                  {followup.video_storage_path ? (
+                    <FollowupVideoPlayer storagePath={followup.video_storage_path} />
+                  ) : (
+                    <div className="flex items-center gap-2.5 p-3 rounded-xl border border-dashed border-border/80 bg-muted/10 text-xs text-muted-foreground">
+                      <Video className="h-4 w-4 text-muted-foreground/60 shrink-0" />
+                      <span>No video clip was submitted for this monthly report.</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Review & Feedback Section */}
