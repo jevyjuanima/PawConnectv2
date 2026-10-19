@@ -62,8 +62,9 @@ export default async function DogDetailPage({ params }: DogDetailPageProps) {
     notFound();
   }
 
-  // Check if current user has an active application for this dog
+  // Check if current user has an application for this dog
   let existingApplicationId: string | null = null;
+  let existingApplicationStatus: string | null = null;
   if (userId) {
     try {
       const supabase = await createServerSupabaseClient();
@@ -72,11 +73,11 @@ export default async function DogDetailPage({ params }: DogDetailPageProps) {
         .select("id, status")
         .eq("dog_id", dog.id)
         .eq("applicant_id", userId)
-        .not("status", "in", '("cancelled","rejected")')
         .maybeSingle();
 
       if (existingApp) {
         existingApplicationId = existingApp.id;
+        existingApplicationStatus = existingApp.status;
       }
     } catch {
       // Non-fatal check
@@ -161,7 +162,7 @@ export default async function DogDetailPage({ params }: DogDetailPageProps) {
             </div>
 
             {/* Dog Name */}
-            <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-normal tracking-tight text-foreground">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-foreground">
               {dog.name}
             </h1>
 
@@ -217,21 +218,57 @@ export default async function DogDetailPage({ params }: DogDetailPageProps) {
                 </Link>
               </div>
             ) : existingApplicationId ? (
-              <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
+              <div
+                className={cn(
+                  "rounded-xl border p-4 space-y-3",
+                  existingApplicationStatus === "rejected"
+                    ? "border-amber-500/30 bg-amber-500/5"
+                    : "border-emerald-500/30 bg-emerald-500/5"
+                )}
+              >
                 <div>
-                  <p className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
-                    Application Submitted
+                  <p
+                    className={cn(
+                      "text-xs font-semibold uppercase tracking-wider",
+                      existingApplicationStatus === "rejected"
+                        ? "text-amber-800 dark:text-amber-300"
+                        : "text-emerald-800 dark:text-emerald-300"
+                    )}
+                  >
+                    {existingApplicationStatus === "rejected"
+                      ? "Application Reviewed"
+                      : existingApplicationStatus === "approved"
+                      ? "Application Approved"
+                      : existingApplicationStatus === "completed"
+                      ? "Adoption Finalized"
+                      : "Application Submitted"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    You have an active application in review for {dog.name}.
+                    {existingApplicationStatus === "rejected"
+                      ? `An application for ${dog.name} was previously submitted and reviewed.`
+                      : existingApplicationStatus === "approved"
+                      ? `Your application for ${dog.name} has been approved by staff.`
+                      : existingApplicationStatus === "completed"
+                      ? `You have adopted ${dog.name}!`
+                      : `You have an active application in review for ${dog.name}.`}
                   </p>
                 </div>
-                <Link
-                  href="/my-applications"
-                  className={cn(buttonVariants(), "w-full text-sm font-medium shadow-xs")}
-                >
-                  Track My Application
-                </Link>
+                <div className="flex flex-col gap-2">
+                  <Link
+                    href="/my-applications"
+                    className={cn(buttonVariants(), "w-full text-sm font-medium shadow-xs")}
+                  >
+                    View in My Applications
+                  </Link>
+                  {existingApplicationStatus === "rejected" && (
+                    <Link
+                      href="/dogs"
+                      className={cn(buttonVariants({ variant: "outline" }), "w-full text-sm font-medium")}
+                    >
+                      Browse Other Dogs
+                    </Link>
+                  )}
+                </div>
               </div>
             ) : isAvailable ? (
               <div className="space-y-3">
@@ -285,7 +322,7 @@ export default async function DogDetailPage({ params }: DogDetailPageProps) {
           <section aria-labelledby="about-heading" className="space-y-4">
             <h2
               id="about-heading"
-              className="font-serif text-2xl sm:text-3xl font-normal text-foreground"
+              className="text-2xl sm:text-3xl font-bold text-foreground"
             >
               About {dog.name}
             </h2>
@@ -300,7 +337,7 @@ export default async function DogDetailPage({ params }: DogDetailPageProps) {
           <section aria-labelledby="temperament-heading" className="space-y-4 pt-2">
             <h2
               id="temperament-heading"
-              className="font-serif text-2xl font-normal text-foreground"
+              className="text-2xl font-bold text-foreground"
             >
               Temperament &amp; Home Needs
             </h2>
@@ -314,7 +351,7 @@ export default async function DogDetailPage({ params }: DogDetailPageProps) {
         <section aria-labelledby="care-heading" className="space-y-4 pt-2">
           <h2
             id="care-heading"
-            className="font-serif text-2xl font-normal text-foreground"
+            className="text-2xl font-bold text-foreground"
           >
             Care &amp; Health Background
           </h2>
@@ -369,7 +406,7 @@ export default async function DogDetailPage({ params }: DogDetailPageProps) {
         <section aria-labelledby="listing-heading" className="space-y-4 pt-2">
           <h2
             id="listing-heading"
-            className="font-serif text-2xl font-normal text-foreground"
+            className="text-2xl font-bold text-foreground"
           >
             Location &amp; Additional Details
           </h2>
@@ -404,7 +441,7 @@ export default async function DogDetailPage({ params }: DogDetailPageProps) {
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
                 Explore More
               </p>
-              <h2 className="font-serif text-2xl sm:text-3xl font-normal text-foreground">
+              <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
                 More dogs looking for homes
               </h2>
             </div>

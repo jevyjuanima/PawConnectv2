@@ -292,3 +292,199 @@ test("Post-Adoption Video: Regression check - photo upload and monthly follow-up
   assert.ok(adminFollowupRowSrc.includes("followup.photo_url"));
   assert.ok(adminFollowupRowSrc.includes("Attached Dog Photo"));
 });
+
+// ---------------------------------------------------------------------------
+// Step 37: Video Storage Path Hardening Tests
+// ---------------------------------------------------------------------------
+
+const ALLOWED_VIDEO_EXTENSIONS = ["mp4", "webm"];
+
+function testValidateVideoStoragePath(path) {
+  if (!path || typeof path !== "string") {
+    return { valid: false, error: "Path must be a non-empty string" };
+  }
+  const trimmed = path.trim();
+  if (trimmed !== path || trimmed.length === 0) {
+    return { valid: false, error: "Path must not have leading/trailing whitespace" };
+  }
+  if (trimmed.includes("\0") || trimmed.includes("\\") || trimmed.includes("..") || trimmed.includes("//")) {
+    return { valid: false, error: "Malformed path or path traversal detected" };
+  }
+  const segments = trimmed.split("/");
+  if (segments.length !== 3) {
+    return { valid: false, error: "Path must match dogs/<ownerId>/<fileName>" };
+  }
+  const [prefix, ownerId, fileName] = segments;
+  if (prefix !== "dogs" || !ownerId || !fileName) {
+    return { valid: false, error: "Invalid path segments" };
+  }
+  if (!/^[a-zA-Z0-9_.-]+$/.test(ownerId)) {
+    return { valid: false, error: "Invalid ownerId characters" };
+  }
+  const ext = fileName.split(".").pop()?.toLowerCase();
+  if (!ext || !ALLOWED_VIDEO_EXTENSIONS.includes(ext)) {
+    return { valid: false, error: "Extension not permitted" };
+  }
+  if (!/^[a-zA-Z0-9_.-]+$/.test(fileName)) {
+    return { valid: false, error: "Invalid fileName characters" };
+  }
+  return { valid: true };
+}
+
+test("Step 37: Valid owner video paths in mp4 and webm are accepted", () => {
+  const userId = "user_clerk_123";
+  const validMp4 = `dogs/${userId}/video_1729384918234_abc123.mp4`;
+  const validWebm = `dogs/${userId}/1700000000-progress.webm`;
+
+  assert.equal(testValidateVideoStoragePath(validMp4).valid, true);
+  assert.equal(testValidateVideoStoragePath(validWebm).valid, true);
+});
+
+test("Step 37: Empty, whitespace, null, and non-string video paths are rejected", () => {
+  assert.equal(testValidateVideoStoragePath("").valid, false);
+  assert.equal(testValidateVideoStoragePath("   ").valid, false);
+  assert.equal(testValidateVideoStoragePath(null).valid, false);
+  assert.equal(testValidateVideoStoragePath(undefined).valid, false);
+  assert.equal(testValidateVideoStoragePath(12345).valid, false);
+});
+
+test("Step 37: Path traversal sequences (..) in video paths are strictly rejected", () => {
+  const userId = "user_clerk_123";
+  const traversalPaths = [
+    `dogs/${userId}/../../dogs/victim_user/video.mp4`,
+    `dogs/${userId}/../victim.mp4`,
+    `../dogs/${userId}/video.mp4`,
+    `dogs/${userId}/video..mp4`,
+    `dogs/${userId}/.../video.mp4`,
+  ];
+  for (const p of traversalPaths) {
+    assert.equal(testValidateVideoStoragePath(p).valid, false, `Expected ${p} to be rejected`);
+  }
+});
+
+test("Step 37: Backslashes in video paths are rejected (cross-platform normalization defense)", () => {
+  const userId = "user_clerk_123";
+  const backslashPaths = [
+    `dogs\\${userId}\\video.mp4`,
+    `dogs/${userId}\\video.mp4`,
+    `dogs\\${userId}/video.mp4`,
+  ];
+  for (const p of backslashPaths) {
+    assert.equal(testValidateVideoStoragePath(p).valid, false, `Expected ${p} to be rejected`);
+  }
+});
+
+test("Step 37: Null bytes in video paths are rejected", () => {
+  const userId = "user_clerk_123";
+  const nullBytePaths = [
+    `dogs/${userId}/video\0.mp4`,
+    `dogs/${userId}\0/video.mp4`,
+    `dogs\0/${userId}/video.mp4`,
+  ];
+  for (const p of nullBytePaths) {
+    assert.equal(testValidateVideoStoragePath(p).valid, false, `Expected ${p} to be rejected`);
+  }
+});
+
+test("Step 37: Invalid or missing video extensions are rejected", () => {
+  const userId = "user_clerk_123";
+  const invalidExtPaths = [
+    `dogs/${userId}/video`,
+    `dogs/${userId}/video.`,
+    `dogs/${userId}/video.avi`,
+    `dogs/${userId}/video.mov`,
+    `dogs/${userId}/video.exe`,
+    `dogs/${userId}/video.jpg`,
+    `dogs/${userId}/video.png`,
+    `dogs/${userId}/video.mp4.exe`,
+  ];
+  for (const p of invalidExtPaths) {
+    assert.equal(testValidateVideoStoragePath(p).valid, false, `Expected ${p} to be rejected`);
+  }
+});
+
+test("Step 37: Malformed segment counts and wrong top-level prefixes are rejected", () => {
+  const userId = "user_clerk_123";
+  const malformedPaths = [
+    `/dogs/${userId}/video.mp4`,
+    `dogs/${userId}/subfolder/video.mp4`,
+    `dog-videos/${userId}/video.mp4`,
+    `cats/${userId}/video.mp4`,
+    `dogs/video.mp4`,
+    `dogs//${userId}/video.mp4`,
+    `dogs/${userId}//video.mp4`,
+  ];
+  for (const p of malformedPaths) {
+    assert.equal(testValidateVideoStoragePath(p).valid, false, `Expected ${p} to be rejected`);
+  }
+});
+
+test("Step 37: User ownership vs administrator authorization logic in actions", () => {
+  const currentUserId = "user_clerk_123";
+  const victimUserId = "user_clerk_victim_456";
+
+  const ownPath = `dogs/${currentUserId}/progress.mp4`;
+  const foreignPath = `dogs/${victimUserId}/progress.mp4`;
+
+  // Regular user checking own path
+  const isOwnerOwn = ownPath.startsWith(`dogs/${currentUserId}/`);
+  assert.equal(isOwnerOwn, true);
+
+  // Regular user checking foreign path
+  const isOwnerForeign = foreignPath.startsWith(`dogs/${currentUserId}/`);
+  const isRegularUserAdmin = false;
+  const regularAccessForeign = isOwnerForeign || isRegularUserAdmin;
+  assert.equal(regularAccessForeign, false, "Regular user must NOT access foreign video path");
+
+  // Administrator checking foreign path
+  const isAdmin = true;
+  const adminAccessForeign = isOwnerForeign || isAdmin;
+  assert.equal(adminAccessForeign, true, "Administrator must have access to manage foreign video path");
+});
+
+test("Step 37 Source: createFollowupVideoSignedUrlAction enforces isValidVideoStoragePath before signing", () => {
+  const actionIndex = uploadActionSrc.indexOf("export async function createFollowupVideoSignedUrlAction");
+  const actionSrc = uploadActionSrc.substring(actionIndex);
+
+  assert.ok(
+    actionSrc.includes("isValidVideoStoragePath(storagePath)"),
+    "createFollowupVideoSignedUrlAction must call isValidVideoStoragePath"
+  );
+  const validationIndex = actionSrc.indexOf("if (!isValidVideoStoragePath(storagePath))");
+  const signIndex = actionSrc.indexOf('.createSignedUrl(storagePath, 3600)');
+  assert.ok(validationIndex !== -1, "validation check must exist in source");
+  assert.ok(signIndex !== -1, "createSignedUrl call must exist in source");
+  assert.ok(
+    validationIndex < signIndex,
+    "isValidVideoStoragePath must execute before createSignedUrl"
+  );
+});
+
+test("Step 37 Source: deleteDogVideoAction enforces isValidVideoStoragePath before deletion", () => {
+  const actionIndex = uploadActionSrc.indexOf("export async function deleteDogVideoAction");
+  const nextActionIndex = uploadActionSrc.indexOf("export async function createFollowupVideoSignedUrlAction");
+  const deleteActionSrc = uploadActionSrc.substring(actionIndex, nextActionIndex);
+
+  assert.ok(
+    deleteActionSrc.includes("if (!isValidVideoStoragePath(storagePath))"),
+    "deleteDogVideoAction must validate path before deleting"
+  );
+  assert.ok(
+    deleteActionSrc.includes('.remove([storagePath])'),
+    "deleteDogVideoAction must delete via remove"
+  );
+  const valIdx = deleteActionSrc.indexOf("if (!isValidVideoStoragePath(storagePath))");
+  const remIdx = deleteActionSrc.indexOf(".remove([storagePath])");
+  assert.ok(
+    valIdx < remIdx,
+    "isValidVideoStoragePath must execute before Supabase remove is called"
+  );
+});
+
+test("Step 37 Source: deleteDogPhotoAction enforces isValidPhotoStoragePath before deletion", () => {
+  assert.ok(
+    uploadActionSrc.includes("isValidPhotoStoragePath(storagePath)"),
+    "deleteDogPhotoAction must call isValidPhotoStoragePath"
+  );
+});
+

@@ -584,31 +584,79 @@ export async function getAdminUsersAction(): Promise<ActionResponse<ProfileRecor
 
 /**
  * Updates a user's role (admin privilege only).
+ * Synchronizes both Clerk publicMetadata and Supabase profiles table,
+ * ensuring bidirectional consistency and rollback safety if either system fails.
  */
 export async function updateUserRoleAction(
   targetClerkId: string,
   role: typeof USER_ROLES.USER | typeof USER_ROLES.ADMIN
 ): Promise<ActionResponse<void>> {
   try {
+    // 1. Validate role input strictly to allowed roles ('admin' and 'user')
+    if (role !== USER_ROLES.ADMIN && role !== USER_ROLES.USER) {
+      return {
+        success: false,
+        error: "Invalid role specified. Only 'admin' and 'user' roles are supported.",
+      };
+    }
+
+    if (!targetClerkId || typeof targetClerkId !== "string" || !targetClerkId.trim()) {
+      return { success: false, error: "Target user ID is required" };
+    }
+
+    // 2. Authentication check
+    const { userId } = await auth();
+    if (!userId) {
+      return { success: false, error: "Authentication required" };
+    }
+
+    // 3. Authorization check (admin privilege only)
     const isAdmin = await isCurrentUserAdmin();
     if (!isAdmin) {
       return { success: false, error: "Administrative privileges required" };
     }
 
-    const { userId } = await auth();
+    // 4. Prevent self-demotion
     if (userId === targetClerkId && role !== USER_ROLES.ADMIN) {
       return { success: false, error: "You cannot revoke your own administrator privileges" };
     }
 
+    const { performRoleUpdate } = await import("@/lib/auth/role-sync");
     const supabase = createAdminSupabaseClient();
+    const { clerkClient } = await import("@clerk/nextjs/server");
+    const clerk = await clerkClient();
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({ role, updated_at: new Date().toISOString() })
-      .eq("clerk_id", targetClerkId);
+    const result = await performRoleUpdate(targetClerkId, role, {
+      callerUserId: userId,
+      isCallerAdmin: isAdmin,
+      getTargetProfileRole: async (clerkId: string) => {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("clerk_id", clerkId)
+          .maybeSingle();
+        if (error || !data) return null;
+        return { role: data.role as typeof USER_ROLES.USER | typeof USER_ROLES.ADMIN };
+      },
+      updateClerkRole: async (clerkId: string, roleToSet) => {
+        await clerk.users.updateUserMetadata(clerkId, {
+          publicMetadata: { role: roleToSet },
+        });
+      },
+      updateDbRole: async (clerkId: string, roleToSet) => {
+        const { error } = await supabase
+          .from("profiles")
+          .update({ role: roleToSet, updated_at: new Date().toISOString() })
+          .eq("clerk_id", clerkId);
+        if (error) {
+          return { success: false, error: error.message };
+        }
+        return { success: true };
+      },
+    });
 
-    if (error) {
-      return { success: false, error: error.message };
+    if (!result.success) {
+      return { success: false, error: result.error || "Failed to update user role" };
     }
 
     revalidatePath("/admin/users");

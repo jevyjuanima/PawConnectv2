@@ -1,12 +1,13 @@
 import * as React from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ShieldCheck, Search, Filter } from "lucide-react";
+import { ShieldCheck, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { getAdminScreeningsAction } from "@/app/actions/admin";
 import { AdminScreeningRow } from "@/components/admin/AdminScreeningRow";
 import { SCREENING_STATUSES } from "@/lib/constants/statuses";
 import { cn } from "@/lib/utils";
+import { computeSuitabilityScore } from "@/lib/scoring/screening-score";
 
 export const metadata: Metadata = {
   title: "Screening Management — PawConnect Admin",
@@ -58,7 +59,7 @@ export default async function AdminScreeningsPage(props: AdminScreeningsPageProp
             <ShieldCheck className="h-4 w-4" />
             <span>Adoption Pre-Screening</span>
           </div>
-          <h1 className="font-serif text-3xl sm:text-4xl font-normal tracking-tight text-foreground">
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
             Household Suitability Screenings
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground max-w-2xl leading-relaxed">
@@ -107,9 +108,32 @@ export default async function AdminScreeningsPage(props: AdminScreeningsPageProp
       {/* Screenings List */}
       {filteredScreenings.length > 0 ? (
         <div className="space-y-4">
-          {filteredScreenings.map((screening) => (
-            <AdminScreeningRow key={screening.id} screening={screening} />
-          ))}
+          {filteredScreenings.map((screening) => {
+            // Score is computed server-side here, serialized as a prop,
+            // and rendered by the client component without re-computation.
+            const scoreResult = computeSuitabilityScore({
+              housing_type: screening.housing_type,
+              landlord_permission: screening.landlord_permission,
+              has_children: screening.has_children,
+              children_details: screening.children_details,
+              household_members_details: screening.household_members_details,
+              existing_pets_details: screening.existing_pets_details,
+              pet_care_experience: screening.pet_care_experience,
+              daily_alone_hours: screening.daily_alone_hours,
+              daily_care_arrangements: screening.daily_care_arrangements,
+              emergency_vet_care_plan: screening.emergency_vet_care_plan,
+              household_agreement: screening.household_agreement,
+              screening_consent: screening.screening_consent,
+            });
+            return (
+              <AdminScreeningRow
+                key={screening.id}
+                screening={screening}
+                scoreResult={scoreResult}
+              />
+            );
+          })}
+
         </div>
       ) : (
         <div className="rounded-2xl border border-border/80 bg-card p-12 text-center space-y-3">

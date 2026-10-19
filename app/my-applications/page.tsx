@@ -46,7 +46,7 @@ export default async function MyApplicationsPage() {
       {/* Header Area */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border/70 pb-6">
         <div className="space-y-1.5">
-          <h1 className="font-serif text-3xl sm:text-4xl font-normal tracking-tight text-foreground">
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
             My Applications
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground max-w-xl leading-relaxed">

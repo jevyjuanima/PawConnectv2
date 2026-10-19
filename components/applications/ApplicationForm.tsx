@@ -330,15 +330,15 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
               >
                 <span
                   className={cn(
-                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px]",
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
                     isCurrent
-                      ? "bg-primary text-primary-foreground font-bold"
+                      ? "bg-primary text-primary-foreground"
                       : isCompleted
-                      ? "bg-muted text-foreground"
-                      : "bg-muted/40 text-muted-foreground/60"
+                      ? "bg-primary/15 text-primary"
+                      : "bg-muted/50 text-muted-foreground/60"
                   )}
                 >
-                  {isCompleted ? <Check className="h-3 w-3" /> : s.number}
+                  {isCompleted ? <Check className="h-3.5 w-3.5" /> : s.number}
                 </span>
                 <span className="truncate">{s.label}</span>
               </button>
@@ -347,17 +347,19 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
         </div>
 
         {/* Mobile Progress Bar */}
-        <div className="sm:hidden flex items-center justify-between text-xs text-muted-foreground pb-1">
-          <span className="font-medium text-foreground">
-            Step {currentStepNumber} of 5: {STEPS[currentStepNumber - 1]?.label}
-          </span>
-          <span>{Math.round((currentStepNumber / 5) * 100)}%</span>
-        </div>
-        <div className="sm:hidden h-1 w-full bg-muted rounded-full overflow-hidden">
-          <div
-            className="h-full bg-primary transition-all duration-300"
-            style={{ width: `${(currentStepNumber / 5) * 100}%` }}
-          />
+        <div className="sm:hidden space-y-1.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-foreground">
+              Step {currentStepNumber} of 5
+            </span>
+            <span className="text-muted-foreground">{STEPS[currentStepNumber - 1]?.label}</span>
+          </div>
+          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary transition-all duration-300 rounded-full"
+              style={{ width: `${(currentStepNumber / 5) * 100}%` }}
+            />
+          </div>
         </div>
       </div>
 
@@ -366,8 +368,21 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle className="text-xs font-bold">{formError.title}</AlertTitle>
-          <AlertDescription className="text-xs leading-relaxed">
-            {formError.description}
+          <AlertDescription className="text-xs leading-relaxed space-y-2">
+            <p>{formError.description}</p>
+            {(formError.description.toLowerCase().includes("already") ||
+              formError.description.toLowerCase().includes("existing") ||
+              formError.description.toLowerCase().includes("submitted")) && (
+              <div className="pt-1.5">
+                <Link
+                  href="/my-applications"
+                  className="inline-flex items-center gap-1.5 font-semibold text-destructive underline underline-offset-4 hover:opacity-80 transition-opacity"
+                >
+                  <span>Go to My Applications</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            )}
           </AlertDescription>
         </Alert>
       )}
@@ -377,12 +392,12 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
         {/* STEP 1: HOUSEHOLD & FAMILY */}
         {currentStep === "about" && (
           <section className="space-y-6 animate-in fade-in-50 duration-200">
-            <div className="space-y-1">
-              <h2 className="font-serif text-2xl font-normal text-foreground">
-                Household &amp; Family Screening
+            <div className="space-y-1.5">
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+                Household &amp; Family
               </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                To evaluate suitability, please share details about the people living in your home and their agreement to welcome {dog.name}.
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Tell us about the people who live in your home and confirm everyone agrees to welcome {dog.name}.
               </p>
             </div>
 
@@ -460,10 +475,10 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                   <div
                     onClick={() => field.onChange(!field.value)}
                     className={cn(
-                      "flex items-start gap-3 p-4 rounded-xl border cursor-pointer select-none transition-all",
+                      "flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer select-none transition-all",
                       field.value
                         ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-                        : "border-border/80 bg-card hover:bg-muted/20"
+                        : "border-border bg-card hover:border-foreground/40"
                     )}
                   >
                     <Checkbox
@@ -511,10 +526,10 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                   <div
                     onClick={() => field.onChange(!field.value)}
                     className={cn(
-                      "flex items-start gap-3 p-4 rounded-xl border cursor-pointer select-none transition-all",
+                      "flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer select-none transition-all",
                       field.value
                         ? "border-emerald-600 bg-emerald-500/5 ring-1 ring-emerald-500/30"
-                        : "border-border/80 bg-card hover:bg-muted/20"
+                        : "border-border bg-card hover:border-foreground/40"
                     )}
                   >
                     <Checkbox
@@ -555,12 +570,12 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
         {/* STEP 2: HOUSING SUITABILITY */}
         {currentStep === "home" && (
           <section className="space-y-6 animate-in fade-in-50 duration-200">
-            <div className="space-y-1">
-              <h2 className="font-serif text-2xl font-normal text-foreground">
-                Housing Suitability
+            <div className="space-y-1.5">
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+                Your Housing
               </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                We assess housing arrangements to ensure {dog.name} has adequate space, safety, and necessary permissions.
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Help us confirm {dog.name} will have a safe, comfortable space and that pets are permitted where you live.
               </p>
             </div>
 
@@ -582,10 +597,10 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                           type="button"
                           onClick={() => field.onChange(opt.value)}
                           className={cn(
-                            "p-3.5 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between",
+                            "p-3.5 rounded-xl border-2 text-left transition-all duration-150 flex flex-col justify-between",
                             isSelected
                               ? "border-primary bg-primary/5 text-foreground ring-1 ring-primary/30"
-                              : "border-border/80 bg-card hover:bg-muted/30 text-foreground"
+                              : "border-border bg-card hover:border-foreground/40 text-foreground"
                           )}
                         >
                           <div className="flex items-center justify-between w-full mb-1">
@@ -614,10 +629,10 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                 <div
                   onClick={() => field.onChange(!field.value)}
                   className={cn(
-                    "flex items-start gap-3 p-4 rounded-xl border cursor-pointer select-none transition-all",
+                    "flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer select-none transition-all",
                     field.value
                       ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-                      : "border-border/80 bg-card hover:bg-muted/20"
+                      : "border-border bg-card hover:border-foreground/40"
                   )}
                 >
                   <Checkbox
@@ -647,10 +662,10 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                     <div
                       onClick={() => field.onChange(!field.value)}
                       className={cn(
-                        "flex items-start gap-3 p-4 rounded-xl border cursor-pointer select-none transition-all",
+                        "flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer select-none transition-all",
                         field.value
                           ? "border-emerald-600 bg-emerald-500/5 ring-1 ring-emerald-500/30"
-                          : "border-border/80 bg-card hover:bg-muted/20"
+                          : "border-border bg-card hover:border-foreground/40"
                       )}
                     >
                       <Checkbox
@@ -699,12 +714,12 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
         {/* STEP 3: EXPERIENCE & CARE */}
         {currentStep === "experience" && (
           <section className="space-y-6 animate-in fade-in-50 duration-200">
-            <div className="space-y-1">
-              <h2 className="font-serif text-2xl font-normal text-foreground">
+            <div className="space-y-1.5">
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
                 Pet Experience &amp; Current Animals
               </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Help us understand your experience raising pets and any animals currently living in your home.
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Tell us how experienced you are with dogs and whether you have any other animals at home.
               </p>
             </div>
 
@@ -726,10 +741,10 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                           type="button"
                           onClick={() => field.onChange(opt.value)}
                           className={cn(
-                            "p-3.5 rounded-xl border text-left transition-all duration-150 flex flex-col justify-between",
+                            "p-3.5 rounded-xl border-2 text-left transition-all duration-150 flex flex-col justify-between",
                             isSelected
                               ? "border-primary bg-primary/5 text-foreground ring-1 ring-primary/30"
-                              : "border-border/80 bg-card hover:bg-muted/30 text-foreground"
+                              : "border-border bg-card hover:border-foreground/40 text-foreground"
                           )}
                         >
                           <div className="flex items-center justify-between w-full mb-1">
@@ -779,10 +794,10 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                 <div
                   onClick={() => field.onChange(!field.value)}
                   className={cn(
-                    "flex items-start gap-3 p-4 rounded-xl border cursor-pointer select-none transition-all",
+                    "flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer select-none transition-all",
                     field.value
                       ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-                      : "border-border/80 bg-card hover:bg-muted/20"
+                      : "border-border bg-card hover:border-foreground/40"
                   )}
                 >
                   <Checkbox
@@ -848,12 +863,12 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
         {/* STEP 4: DAILY CARE & VET PLAN */}
         {currentStep === "plans" && (
           <section className="space-y-6 animate-in fade-in-50 duration-200">
-            <div className="space-y-1">
-              <h2 className="font-serif text-2xl font-normal text-foreground">
-                Daily Care &amp; Veterinary Plan
+            <div className="space-y-1.5">
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+                Daily Care &amp; Vet Plan
               </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Demonstrate how you will care for {dog.name}&apos;s daily welfare and handle veterinary health needs.
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Describe {dog.name}'s daily schedule, who cares for them during the day, and how you plan to handle vet visits and emergencies.
               </p>
             </div>
 
@@ -968,10 +983,10 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
                   <div
                     onClick={() => field.onChange(!field.value)}
                     className={cn(
-                      "flex items-start gap-3 p-4 rounded-xl border cursor-pointer select-none transition-all",
+                      "flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer select-none transition-all",
                       field.value
                         ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-                        : "border-border/80 bg-card hover:bg-muted/20"
+                        : "border-border bg-card hover:border-foreground/40"
                     )}
                   >
                     <Checkbox
@@ -1022,12 +1037,12 @@ export function ApplicationForm({ dog, applicant }: ApplicationFormProps) {
         {/* STEP 5: REVIEW BEFORE SUBMIT */}
         {currentStep === "review" && (
           <section className="space-y-8 animate-in fade-in-50 duration-200">
-            <div className="space-y-1">
-              <h2 className="font-serif text-2xl font-normal text-foreground">
-                Review your application &amp; screening
+            <div className="space-y-1.5">
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">
+                Review before submitting
               </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Please verify all answers before submission. You can edit any section if anything needs updating.
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Check your answers below. You can click <strong>Edit</strong> on any section to make changes before you submit.
               </p>
             </div>
 

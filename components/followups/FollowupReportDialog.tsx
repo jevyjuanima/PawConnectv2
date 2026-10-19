@@ -37,7 +37,11 @@ import {
   type FollowupReportInput,
 } from "@/lib/validations/followup";
 import { submitFollowUpReportAction } from "@/app/actions/followup";
-import { uploadDogPhotoAction, createDogVideoUploadUrlAction } from "@/app/actions/upload";
+import {
+  createDogPhotoUploadUrlAction,
+  deleteDogPhotoAction,
+  createDogVideoUploadUrlAction,
+} from "@/app/actions/upload";
 import { validateDogImageFile, validateDogVideoFile, VIDEO_UPLOAD_LIMITS } from "@/lib/validations/upload";
 import type { FollowupWithDetails } from "@/types";
 
@@ -125,21 +129,41 @@ export function FollowupReportDialog({
 
     setPhotoUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
+      const urlRes = await createDogPhotoUploadUrlAction({
+        name: file.name,
+        size: file.size,
+        type: file.type,
+      });
 
-      const res = await uploadDogPhotoAction(formData);
-      if (res.success && res.data) {
-        setPhotoUrl(res.data.url);
-        setPhotoPath(res.data.path);
-        setValue("photo_url", res.data.url);
-        setValue("photo_storage_path", res.data.path);
-        toast.success("Photo attached");
-      } else {
-        toast.error(res.error || "Failed to upload photo");
+      if (!urlRes.success || !urlRes.data) {
+        toast.error(urlRes.error || "Failed to prepare photo upload");
+        return;
       }
-    } catch {
-      toast.error("Error uploading photo");
+
+      const { signedUrl, storagePath, publicUrl } = urlRes.data;
+
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", signedUrl);
+        xhr.setRequestHeader("Content-Type", file.type);
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error(`Photo upload failed with status ${xhr.status}`));
+          }
+        };
+        xhr.onerror = () => reject(new Error("Network error during photo upload"));
+        xhr.send(file);
+      });
+
+      setPhotoUrl(publicUrl);
+      setPhotoPath(storagePath);
+      setValue("photo_url", publicUrl);
+      setValue("photo_storage_path", storagePath);
+      toast.success("Photo attached");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error uploading photo");
     } finally {
       setPhotoUploading(false);
       e.target.value = "";
@@ -147,6 +171,9 @@ export function FollowupReportDialog({
   };
 
   const handleRemovePhoto = () => {
+    if (photoPath) {
+      deleteDogPhotoAction(photoPath).catch(() => {});
+    }
     setPhotoUrl("");
     setPhotoPath("");
     setValue("photo_url", "");
@@ -276,7 +303,7 @@ export function FollowupReportDialog({
             <Heart className="h-4 w-4" />
             <span>Month {followup.month_number} Welfare Report</span>
           </div>
-          <DialogTitle className="font-serif text-2xl font-normal text-foreground">
+          <DialogTitle className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
             Monthly Monitoring for {dogName}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">

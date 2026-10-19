@@ -1,7 +1,11 @@
+"use client";
+
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { PawPrint, Heart, ShieldCheck, Mail } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 const footerLinks = {
   adopt: [
@@ -17,8 +21,17 @@ const footerLinks = {
 };
 
 export function Footer() {
+  const pathname = usePathname();
+  const isAdmin = pathname?.startsWith("/admin");
+
   return (
-    <footer className="border-t bg-muted/20" aria-label="Site footer">
+    <footer
+      className={cn(
+        "border-t bg-muted/20 transition-all",
+        isAdmin && "lg:pl-64"
+      )}
+      aria-label="Site footer"
+    >
       <div className="container mx-auto px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-10 md:grid-cols-4 lg:grid-cols-5">
           {/* Brand */}

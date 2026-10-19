@@ -51,7 +51,7 @@ export default async function RehomePage() {
 
       {/* Header */}
       <div className="space-y-2 border-b border-border/70 pb-6">
-        <h1 className="font-serif text-3xl sm:text-4xl font-normal tracking-tight text-foreground">
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
           Rehome your dog
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-2xl">

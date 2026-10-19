@@ -20,7 +20,7 @@ export async function Navbar() {
   const profile = await getCurrentUserProfile();
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b bg-background/90 backdrop-blur-sm">
+    <header className="sticky top-0 z-40 w-full border-b bg-card/95 backdrop-blur-sm shadow-2xs">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand Logo & Desktop Nav */}
         <div className="flex items-center gap-6 lg:gap-8">
@@ -33,10 +33,10 @@ export async function Navbar() {
               <PawPrint className="h-5 w-5" />
             </div>
             <div className="flex flex-col">
-              <span className="font-serif text-xl font-bold tracking-tight text-foreground leading-none">
+              <span className="text-xl font-extrabold tracking-tight text-foreground leading-none">
                 PawConnect
               </span>
-              <span className="text-[10px] text-muted-foreground font-medium">
+              <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
                 Adoption &amp; Rehoming
               </span>
             </div>
@@ -64,14 +64,14 @@ export async function Navbar() {
 
           <SignedOut>
             <div className="hidden md:flex items-center gap-2">
-              <SignInButton mode="modal">
+              <SignInButton mode="modal" fallbackRedirectUrl="/dashboard">
                 <Button variant="ghost" size="sm" className="font-medium text-sm">
                   Sign In
                 </Button>
               </SignInButton>
               <Link
                 href={GUEST_PRIMARY_CTA.href}
-                className={cn(buttonVariants({ size: "sm" }), "shadow-xs font-medium text-sm")}
+                className={cn(buttonVariants({ size: "sm" }), "shadow-sm font-semibold text-sm rounded-full px-6")}
               >
                 {GUEST_PRIMARY_CTA.label}
               </Link>

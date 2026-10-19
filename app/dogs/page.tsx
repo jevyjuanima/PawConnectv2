@@ -68,7 +68,7 @@ export default async function DogsPage({ searchParams }: DogsPageProps) {
           <span className="text-[11px] sm:text-xs font-semibold uppercase tracking-widest text-muted-foreground block mb-2">
             Adoption Directory
           </span>
-          <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-normal tracking-tight text-foreground leading-[1.15]">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-foreground leading-[1.15]">
             Dogs looking for homes
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-3 leading-relaxed">
@@ -97,8 +97,8 @@ export default async function DogsPage({ searchParams }: DogsPageProps) {
       {dogs.length > 0 ? (
         <div className="space-y-12">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-            {dogs.map((dog) => (
-              <DogCard key={dog.id} dog={dog} />
+            {dogs.map((dog, index) => (
+              <DogCard key={dog.id} dog={dog} priority={index < 3} />
             ))}
           </div>
 
@@ -173,7 +173,7 @@ export default async function DogsPage({ searchParams }: DogsPageProps) {
         /* ── 5. CALM EMPTY STATE ── */
         <div className="rounded-3xl border border-dashed border-border/80 bg-muted/20 p-12 sm:p-16 text-center max-w-lg mx-auto my-8 space-y-4">
           <div className="space-y-2">
-            <h2 className="font-serif text-2xl font-normal text-foreground">
+            <h2 className="text-2xl font-bold text-foreground">
               {hasFilters ? "No dogs match those filters." : "No dogs currently available."}
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed">

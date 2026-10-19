@@ -36,6 +36,7 @@ export default function RootLayout({
       <html
         lang="en"
         suppressHydrationWarning
+        data-scroll-behavior="smooth"
         className={`${inter.variable} ${newsreader.variable}`}
       >
         <body className="min-h-screen bg-background font-sans antialiased text-foreground selection:bg-primary/15 selection:text-foreground">

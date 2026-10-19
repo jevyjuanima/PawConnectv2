@@ -5,6 +5,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Search, X, SlidersHorizontal, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetContent,
@@ -103,7 +104,7 @@ export function DogFilters({ totalCount }: DogFiltersProps) {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search by name, breed, or location..."
-            className="pl-10 pr-9 h-11 rounded-xl bg-card border-border/80 text-sm focus-visible:ring-primary/40"
+            className="pl-10 pr-9 text-sm"
           />
           {searchTerm && (
             <button
@@ -148,16 +149,16 @@ export function DogFilters({ totalCount }: DogFiltersProps) {
 
           <SheetContent side="bottom" className="rounded-t-2xl p-6 space-y-6 max-h-[85vh] overflow-y-auto">
             <SheetHeader className="text-left pb-2 border-b border-border/70">
-              <SheetTitle className="font-serif text-lg font-bold text-foreground">
+              <SheetTitle className="text-lg font-bold text-foreground tracking-tight">
                 Filter Available Dogs
               </SheetTitle>
             </SheetHeader>
 
             {/* Sex in Mobile Sheet */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Sex
-              </label>
+              </Label>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { value: "all", label: "All" },
@@ -183,9 +184,9 @@ export function DogFilters({ totalCount }: DogFiltersProps) {
 
             {/* Size in Mobile Sheet */}
             <div className="space-y-2">
-              <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Size
-              </label>
+              </Label>
               <div className="grid grid-cols-3 gap-2">
                 {[
                   { value: "all", label: "All" },

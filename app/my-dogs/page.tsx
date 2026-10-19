@@ -53,7 +53,7 @@ export default async function MyDogsPage() {
       {/* Header Area */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border/70 pb-6">
         <div className="space-y-1.5">
-          <h1 className="font-serif text-3xl sm:text-4xl font-normal tracking-tight text-foreground">
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
             My Dogs
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground max-w-xl leading-relaxed">
@@ -88,7 +88,7 @@ export default async function MyDogsPage() {
             <p className="text-xs uppercase tracking-widest text-muted-foreground font-medium">
               Your dogs
             </p>
-            <h2 className="font-serif text-2xl sm:text-3xl font-normal text-foreground">
+            <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
               Nothing here yet.
             </h2>
             <p className="text-sm text-muted-foreground leading-relaxed">

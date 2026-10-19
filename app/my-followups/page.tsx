@@ -31,7 +31,7 @@ export default async function MyFollowupsPage() {
             <Heart className="h-4 w-4" />
             <span>Adoption Welfare Program</span>
           </div>
-          <h1 className="font-serif text-3xl sm:text-4xl font-normal tracking-tight text-foreground">
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
             Monthly Post-Adoption Monitoring
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground max-w-2xl leading-relaxed">
@@ -49,14 +49,14 @@ export default async function MyFollowupsPage() {
       </div>
 
       {/* Advisory Banner */}
-      <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 sm:p-5 flex items-start gap-3.5">
+      <div className="rounded-xl border border-primary/25 bg-primary/5 p-4 sm:p-5 flex items-start gap-3.5">
         <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-        <div className="text-xs sm:text-sm space-y-1">
-          <p className="font-semibold text-foreground">
+        <div className="text-xs sm:text-sm space-y-1.5">
+          <p className="font-bold text-foreground">
             12-Month Post-Adoption Welfare Follow-ups
           </p>
           <p className="text-muted-foreground leading-relaxed">
-            Each month, please take 2 minutes to submit an update on your dog&apos;s physical condition, eating habits, veterinary visits, and home adjustment. Our welfare staff review each report to ensure a smooth transition.
+            Submit a quick monthly check-in covering your dog&apos;s health, routine, and adjustment. Our welfare team reviews each report to support you both.
           </p>
         </div>
       </div>

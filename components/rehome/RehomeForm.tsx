@@ -34,7 +34,8 @@ import {
 import { DOG_GENDERS, DOG_SIZES } from "@/lib/constants/statuses";
 import { createDogAction } from "@/app/actions/dogs";
 import {
-  uploadDogPhotoAction,
+  createDogPhotoUploadUrlAction,
+  deleteDogPhotoAction,
   createDogVideoUploadUrlAction,
   deleteDogVideoAction,
 } from "@/app/actions/upload";
@@ -135,6 +136,17 @@ export function RehomeForm() {
       ]);
       if (isValid) setCurrentStep("photos");
     } else if (currentStep === "photos") {
+      // Video is required — block advancing if uploading or not uploaded
+      if (videoUploading) {
+        setVideoError("Please wait for your video to finish uploading before continuing.");
+        return;
+      }
+      if (!video) {
+        setVideoError(
+          "A dog introduction video is required. Please upload a video before continuing."
+        );
+        return;
+      }
       setCurrentStep("temperament");
     } else if (currentStep === "temperament") {
       const isValid = await trigger(["description", "special_needs"]);
@@ -166,33 +178,67 @@ export function RehomeForm() {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+
+      // Client-side pre-check for immediate user feedback before hitting the server
       const validation = validateDogImageFile({
         name: file.name,
         size: file.size,
         type: file.type,
       });
-
       if (!validation.valid) {
         toast.error(validation.error || `File ${file.name} is invalid.`);
         continue;
       }
 
-      const formData = new FormData();
-      formData.append("file", file);
+      try {
+        // 1. Ask the server to validate metadata and issue a signed upload URL.
+        //    Only file metadata (name, size, type) travels to the server — no bytes.
+        const urlRes = await createDogPhotoUploadUrlAction({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+        });
 
-      const res = await uploadDogPhotoAction(formData);
-      if (res.success && res.data) {
+        if (!urlRes.success || !urlRes.data) {
+          toast.error(urlRes.error || `Failed to prepare upload for ${file.name}`);
+          continue;
+        }
+
+        const { signedUrl, storagePath, publicUrl } = urlRes.data;
+
+        // 2. PUT the file directly from the browser to Supabase Storage.
+        //    Bytes bypass Next.js / Vercel entirely — no platform body limit applies.
+        await new Promise<void>((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("PUT", signedUrl, true);
+          xhr.setRequestHeader("Content-Type", file.type);
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve();
+            } else {
+              reject(new Error(`Photo upload failed with status ${xhr.status}`));
+            }
+          };
+          xhr.onerror = () => {
+            reject(new Error("Network error during photo upload"));
+          };
+          xhr.send(file);
+        });
+
+        // 3. Record the uploaded photo using the server-supplied public URL.
         setPhotos((prev) => [
           ...prev,
           {
-            path: res.data.path,
-            url: res.data.url,
+            path: storagePath,
+            url: publicUrl,
             isPrimary: prev.length === 0,
           },
         ]);
         toast.success(`Uploaded ${file.name}`);
-      } else {
-        toast.error(res.error || `Failed to upload ${file.name}`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : `Failed to upload ${file.name}`;
+        toast.error(msg);
       }
     }
 
@@ -210,6 +256,7 @@ export function RehomeForm() {
   };
 
   const removePhoto = (index: number) => {
+    const photoToRemove = photos[index];
     setPhotos((prev) => {
       const updated = prev.filter((_, i) => i !== index);
       if (updated.length > 0 && !updated.some((p) => p.isPrimary)) {
@@ -217,6 +264,13 @@ export function RehomeForm() {
       }
       return updated;
     });
+    // Best-effort cleanup of the orphaned upload — non-blocking, safe
+    // (deleteDogPhotoAction checks ownership before deleting)
+    if (photoToRemove?.path) {
+      deleteDogPhotoAction(photoToRemove.path).catch(() => {
+        // Ignored: orphaned photos are tolerable; cleanup is best-effort
+      });
+    }
   };
 
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -316,6 +370,22 @@ export function RehomeForm() {
 
   const onSubmit = async (values: DogSubmissionInput) => {
     setFormError(null);
+
+    // Client-side guard: ensure video was uploaded before invoking the server action.
+    // The server action independently enforces this as well.
+    if (!video) {
+      setCurrentStep("photos");
+      setVideoError(
+        "A dog introduction video is required. Please upload a video before submitting."
+      );
+      setFormError({
+        title: "Video introduction is required.",
+        description:
+          "Please upload a video of your dog before submitting. Navigate to the Photos & Video step to add one.",
+      });
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -409,10 +479,10 @@ export function RehomeForm() {
 
   return (
     <div className="space-y-8">
-      {/* Subtle Progress Indicator */}
-      <div className="space-y-2">
+      {/* Step Tracker */}
+      <div className="space-y-3">
         {/* Desktop Progress Sequence */}
-        <div className="hidden sm:grid grid-cols-5 gap-2 text-xs border-b border-border/70 pb-3" role="tablist">
+        <div className="hidden sm:grid grid-cols-5 gap-2 text-xs border-b border-border/70 pb-4" role="tablist">
           {STEPS.map((s) => {
             const isCurrent = s.id === currentStep;
             const isCompleted = s.number < currentStepNumber;
@@ -427,25 +497,25 @@ export function RehomeForm() {
                   if (s.number < currentStepNumber) setCurrentStep(s.id);
                 }}
                 className={cn(
-                  "text-left transition-colors font-medium flex items-center gap-1.5",
+                  "text-left transition-all font-medium flex items-center gap-2 p-1.5 rounded-lg",
                   isCurrent
-                    ? "text-primary font-semibold"
+                    ? "text-primary font-bold bg-primary/5"
                     : isCompleted
-                    ? "text-foreground hover:text-primary cursor-pointer"
+                    ? "text-foreground hover:text-primary hover:bg-muted/40 cursor-pointer"
                     : "text-muted-foreground/60 cursor-not-allowed"
                 )}
               >
                 <span
                   className={cn(
-                    "flex h-5 w-5 items-center justify-center rounded-full text-[11px]",
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-all",
                     isCurrent
-                      ? "bg-primary text-primary-foreground font-bold"
+                      ? "bg-primary text-primary-foreground shadow-xs"
                       : isCompleted
-                      ? "bg-muted text-foreground"
-                      : "bg-muted/40 text-muted-foreground/60"
+                      ? "bg-primary/15 text-primary"
+                      : "bg-muted/70 text-muted-foreground/60"
                   )}
                 >
-                  {isCompleted ? <Check className="h-3 w-3" /> : s.number}
+                  {isCompleted ? <Check className="h-3.5 w-3.5 stroke-[2.5]" /> : s.number}
                 </span>
                 <span className="truncate">{s.label}</span>
               </button>
@@ -454,17 +524,19 @@ export function RehomeForm() {
         </div>
 
         {/* Mobile Progress Bar */}
-        <div className="sm:hidden flex items-center justify-between text-xs text-muted-foreground pb-1">
-          <span className="font-medium text-foreground">
-            Step {currentStepNumber} of 5: {STEPS[currentStepNumber - 1]?.label}
-          </span>
-          <span>{Math.round((currentStepNumber / 5) * 100)}%</span>
-        </div>
-        <div className="sm:hidden h-1 w-full bg-muted rounded-full overflow-hidden">
-          <div
-            className="h-full bg-primary transition-all duration-300"
-            style={{ width: `${(currentStepNumber / 5) * 100}%` }}
-          />
+        <div className="sm:hidden space-y-1.5 pb-1">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">
+              Step {currentStepNumber} of 5: {STEPS[currentStepNumber - 1]?.label}
+            </span>
+            <span className="font-medium">{Math.round((currentStepNumber / 5) * 100)}%</span>
+          </div>
+          <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary transition-all duration-300"
+              style={{ width: `${(currentStepNumber / 5) * 100}%` }}
+            />
+          </div>
         </div>
       </div>
 
@@ -484,11 +556,11 @@ export function RehomeForm() {
         {/* STEP 1: ABOUT YOUR DOG */}
         {currentStep === "basics" && (
           <section className="space-y-6 animate-in fade-in-50 duration-200">
-            <div className="space-y-1">
-              <h2 className="font-serif text-2xl font-normal text-foreground">
+            <div className="space-y-1.5">
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                 About your dog
               </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground leading-relaxed">
                 Start with basic details so prospective adopters can learn who your dog is.
               </p>
             </div>
@@ -585,10 +657,10 @@ export function RehomeForm() {
                           type="button"
                           onClick={() => field.onChange(g.val)}
                           className={cn(
-                            "h-11 rounded-xl border text-sm font-medium transition-all flex items-center justify-center gap-2",
+                            "h-11 rounded-xl border-2 text-sm font-medium transition-all flex items-center justify-center gap-2",
                             field.value === g.val
                               ? "border-primary bg-primary/5 text-foreground ring-1 ring-primary/30 font-semibold"
-                              : "border-border/80 bg-card hover:bg-muted/30 text-foreground"
+                              : "border-border bg-card hover:border-foreground/40 text-foreground"
                           )}
                         >
                           <span>{g.label}</span>
@@ -619,10 +691,10 @@ export function RehomeForm() {
                           type="button"
                           onClick={() => field.onChange(s.value)}
                           className={cn(
-                            "p-3 rounded-xl border text-left transition-all flex flex-col justify-between",
+                            "p-3 rounded-xl border-2 text-left transition-all flex flex-col justify-between",
                             field.value === s.value
                               ? "border-primary bg-primary/5 text-foreground ring-1 ring-primary/30"
-                              : "border-border/80 bg-card hover:bg-muted/30 text-foreground"
+                              : "border-border bg-card hover:border-foreground/40 text-foreground"
                           )}
                         >
                           <div className="flex items-center justify-between w-full mb-1">
@@ -689,12 +761,12 @@ export function RehomeForm() {
         {/* STEP 2: PHOTOS */}
         {currentStep === "photos" && (
           <section className="space-y-6 animate-in fade-in-50 duration-200">
-            <div className="space-y-1">
-              <h2 className="font-serif text-2xl font-normal text-foreground">
-                Photos
+            <div className="space-y-1.5">
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                Photos &amp; Video
               </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                A few clear photos can help a future adopter get to know your dog.
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Clear photos and a short video introduction help prospective adopters connect with your dog.
               </p>
             </div>
 
@@ -795,20 +867,36 @@ export function RehomeForm() {
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-semibold text-foreground">Video Introduction</h3>
-                  <span className="text-[10px] font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-                    Optional
+                  <span className="text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400 px-2 py-0.5 rounded-full">
+                    Required
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Upload an optional video showing your dog&apos;s personality, playfulness, and gait.
+                  Upload a video showing your dog&apos;s personality, playfulness, and gait. A video is required to submit your dog listing.
                 </p>
               </div>
 
               {/* Video Validation / Upload Error */}
               {videoError && (
-                <Alert variant="destructive" className="py-2.5">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription className="text-xs">{videoError}</AlertDescription>
+                <Alert variant="destructive" className="py-2.5 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <AlertDescription className="text-xs">{videoError}</AlertDescription>
+                  </div>
+                  {!video && !videoUploading && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setVideoError(null);
+                        videoInputRef.current?.click();
+                      }}
+                      className="text-xs h-7 px-2 hover:bg-destructive/10 text-destructive underline font-medium ml-2 shrink-0"
+                    >
+                      Try again
+                    </Button>
+                  )}
                 </Alert>
               )}
 
@@ -830,10 +918,10 @@ export function RehomeForm() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-foreground">
-                        Upload introduction video
+                        Upload dog introduction video
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        MP4 or WebM up to 50MB (optional)
+                        MP4 or WebM · Maximum 50MB · Required
                       </p>
                     </div>
                   </div>
@@ -928,6 +1016,7 @@ export function RehomeForm() {
                 type="button"
                 size="lg"
                 onClick={goToNextStep}
+                disabled={videoUploading || uploading}
                 className="gap-2 font-medium"
               >
                 <span>Continue to temperament</span>
@@ -940,11 +1029,11 @@ export function RehomeForm() {
         {/* STEP 3: TEMPERAMENT & CARE */}
         {currentStep === "temperament" && (
           <section className="space-y-6 animate-in fade-in-50 duration-200">
-            <div className="space-y-1">
-              <h2 className="font-serif text-2xl font-normal text-foreground">
+            <div className="space-y-1.5">
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                 Temperament &amp; care
               </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground leading-relaxed">
                 Help a future adopter understand what daily life with your dog looks like.
               </p>
             </div>
@@ -1022,11 +1111,11 @@ export function RehomeForm() {
         {/* STEP 4: BACKGROUND */}
         {currentStep === "background" && (
           <section className="space-y-6 animate-in fade-in-50 duration-200">
-            <div className="space-y-1">
-              <h2 className="font-serif text-2xl font-normal text-foreground">
-                Background
+            <div className="space-y-1.5">
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                Background &amp; health
               </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground leading-relaxed">
                 Accurate care and medical information ensures their next home can provide proper support.
               </p>
             </div>
@@ -1040,10 +1129,10 @@ export function RehomeForm() {
                   <div
                     onClick={() => field.onChange(!field.value)}
                     className={cn(
-                      "flex items-start gap-3 p-4 rounded-xl border cursor-pointer select-none transition-all",
+                      "flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer select-none transition-all",
                       field.value
                         ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-                        : "border-border/80 bg-card hover:bg-muted/20"
+                        : "border-border bg-card hover:border-foreground/40"
                     )}
                   >
                     <Checkbox
@@ -1071,10 +1160,10 @@ export function RehomeForm() {
                   <div
                     onClick={() => field.onChange(!field.value)}
                     className={cn(
-                      "flex items-start gap-3 p-4 rounded-xl border cursor-pointer select-none transition-all",
+                      "flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer select-none transition-all",
                       field.value
                         ? "border-primary bg-primary/5 ring-1 ring-primary/20"
-                        : "border-border/80 bg-card hover:bg-muted/20"
+                        : "border-border bg-card hover:border-foreground/40"
                     )}
                   >
                     <Checkbox
@@ -1151,12 +1240,12 @@ export function RehomeForm() {
         {/* STEP 5: REVIEW */}
         {currentStep === "review" && (
           <section className="space-y-8 animate-in fade-in-50 duration-200">
-            <div className="space-y-1">
-              <h2 className="font-serif text-2xl font-normal text-foreground">
+            <div className="space-y-1.5">
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                 Review your dog&apos;s information
               </h2>
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                Please check these details before submitting. You can edit any section if something needs updating.
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Please check these details before submitting. Click <strong>Edit</strong> on any section if changes are needed.
               </p>
             </div>
 
@@ -1263,9 +1352,12 @@ export function RehomeForm() {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-xs text-muted-foreground italic">
-                    No video uploaded (optional).
-                  </p>
+                  <div className="flex items-center gap-2 p-3 rounded-xl border border-red-300/60 bg-red-50/60 dark:bg-red-950/20">
+                    <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
+                    <p className="text-xs text-red-700 dark:text-red-400 font-medium">
+                      No video uploaded — a video is required before you can submit.
+                    </p>
+                  </div>
                 )}
               </div>
 

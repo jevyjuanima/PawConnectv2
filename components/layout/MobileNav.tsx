@@ -146,7 +146,7 @@ export function MobileNav({ profile }: MobileNavProps) {
               >
                 {GUEST_PRIMARY_CTA.label}
               </Link>
-              <SignInButton mode="modal">
+              <SignInButton mode="modal" fallbackRedirectUrl="/dashboard">
                 <Button variant="outline" size="sm" className="w-full font-medium text-sm" onClick={closeNav}>
                   Sign In
                 </Button>

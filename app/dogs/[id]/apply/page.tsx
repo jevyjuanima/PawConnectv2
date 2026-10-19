@@ -93,7 +93,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
             )}
           </div>
           <div className="min-w-0">
-            <h2 className="font-serif text-xl sm:text-2xl font-normal text-foreground truncate">
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground truncate">
               {dog.name}
             </h2>
             <p className="text-xs text-muted-foreground truncate mt-0.5">
@@ -105,7 +105,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
 
         {/* Notice */}
         <div className="rounded-2xl border border-border/80 bg-card p-6 sm:p-8 space-y-4 text-center sm:text-left">
-          <h1 className="font-serif text-2xl sm:text-3xl font-normal text-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
             This is your dog listing
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
@@ -163,7 +163,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
             )}
           </div>
           <div className="min-w-0">
-            <h2 className="font-serif text-xl sm:text-2xl font-normal text-foreground truncate">
+            <h2 className="text-xl sm:text-2xl font-bold text-foreground truncate">
               {dog.name}
             </h2>
             <p className="text-xs text-muted-foreground truncate mt-0.5">
@@ -175,7 +175,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
 
         {/* Notice */}
         <div className="rounded-2xl border border-border/80 bg-card p-6 sm:p-8 space-y-4 text-center sm:text-left">
-          <h1 className="font-serif text-2xl sm:text-3xl font-normal text-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
             This dog is not currently accepting applications.
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
@@ -205,7 +205,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
     );
   }
 
-  // 3. ALREADY APPLIED: Check if existing active application is already submitted
+  // 3. ALREADY APPLIED: Check if existing application is already submitted
   try {
     const supabase = await createServerSupabaseClient();
     const { data: existingApp } = await supabase
@@ -213,7 +213,6 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
       .select("id, status, created_at")
       .eq("dog_id", dog.id)
       .eq("applicant_id", userId)
-      .not("status", "in", '("cancelled","rejected")')
       .maybeSingle();
 
     if (existingApp) {
@@ -247,7 +246,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
               )}
             </div>
             <div className="min-w-0">
-              <h2 className="font-serif text-xl sm:text-2xl font-normal text-foreground truncate">
+              <h2 className="text-xl sm:text-2xl font-bold text-foreground truncate">
                 {dog.name}
               </h2>
               <p className="text-xs text-muted-foreground truncate mt-0.5">
@@ -263,7 +262,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 Existing Application
               </p>
-              <h1 className="font-serif text-2xl sm:text-3xl font-normal text-foreground">
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
                 You&apos;ve already applied for {dog.name}.
               </h1>
             </div>
@@ -285,7 +284,11 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
             </div>
 
             <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-              Your questionnaire is safely stored in our system. You can review updates, track administrator review, and follow next steps from your applications dashboard.
+              {existingApp.status === "rejected"
+                ? "An application for this dog was previously submitted and reviewed. Only one application per dog listing is permitted. You can review your past application details from your applications dashboard."
+                : existingApp.status === "cancelled"
+                ? "An application for this dog was previously submitted and withdrawn. Please contact shelter staff if you wish to reopen your application."
+                : "Your questionnaire is safely stored in our system. You can review updates, track administrator review, and follow next steps from your applications dashboard."}
             </p>
 
             <div className="pt-2 flex flex-col sm:flex-row gap-3">
@@ -326,7 +329,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
 
       {/* Header */}
       <div className="space-y-2 mb-6 sm:mb-8">
-        <h1 className="font-serif text-3xl sm:text-4xl font-normal tracking-tight text-foreground">
+        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
           Apply to adopt {dog.name}
         </h1>
         <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
@@ -355,7 +358,7 @@ export default async function ApplyPage({ params }: ApplyPageProps) {
           <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Applying for
           </p>
-          <h2 className="font-serif text-xl sm:text-2xl font-normal text-foreground truncate">
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground truncate">
             {dog.name}
           </h2>
           <p className="text-xs text-muted-foreground truncate mt-0.5">

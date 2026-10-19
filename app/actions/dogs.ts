@@ -233,12 +233,50 @@ export async function createDogAction(
       };
     }
 
+    // Server-side enforcement: video is required for new dog listings.
+    // The Zod schema already requires video_storage_path; this guard also
+    // catches cases where the path was present in rawInput but the video
+    // parameter was never supplied (e.g., from a programmatic call that
+    // bypasses the form).
+    const videoStoragePath = video?.path || parsed.data.video_storage_path;
+    if (!videoStoragePath || !videoStoragePath.trim()) {
+      return {
+        success: false,
+        error:
+          "A dog introduction video is required. Please upload a video before submitting your listing.",
+      };
+    }
+
     // Use admin client for writes — identity verified by Clerk auth() above
     const adminSupabase = createAdminSupabaseClient();
     await ensureUserProfile();
 
     const videoUrl = video?.url || parsed.data.video_url || null;
-    const videoStoragePath = video?.path || parsed.data.video_storage_path || null;
+
+    // Ownership check: the video path must belong to the authenticated user
+    if (!videoStoragePath.startsWith(`dogs/${userId}/`)) {
+      return { success: false, error: "Unauthorized video storage path: must belong to the listing owner" };
+    }
+
+    // Ownership check: all photo paths must belong to the authenticated user's permitted namespace
+    if (imageUrls && imageUrls.length > 0) {
+      const permittedPhotoPrefix = `dogs/${userId}/`;
+      for (const img of imageUrls) {
+        const photoPath = img?.path;
+        if (
+          !photoPath ||
+          typeof photoPath !== "string" ||
+          !photoPath.trim() ||
+          !photoPath.startsWith(permittedPhotoPrefix) ||
+          photoPath.includes("..")
+        ) {
+          return {
+            success: false,
+            error: "Unauthorized photo storage path: all photos must belong to the listing owner",
+          };
+        }
+      }
+    }
 
     const dogPayload: Record<string, unknown> = {
       owner_id: userId,
@@ -256,15 +294,10 @@ export async function createDogAction(
       special_needs: parsed.data.special_needs || null,
       location: parsed.data.location,
       status: DOG_STATUSES.PENDING,
+      // Video is required; always set both columns
+      video_storage_path: videoStoragePath,
+      video_url: videoUrl && !videoUrl.startsWith("blob:") ? videoUrl : null,
     };
-
-    if (videoStoragePath) {
-      if (!videoStoragePath.startsWith(`dogs/${userId}/`)) {
-        return { success: false, error: "Unauthorized video storage path: must belong to the listing owner" };
-      }
-      dogPayload.video_storage_path = videoStoragePath;
-      dogPayload.video_url = videoUrl && !videoUrl.startsWith("blob:") ? videoUrl : null;
-    }
 
     const { data: newDog, error: dogError } = await adminSupabase
       .from("dogs")

@@ -52,7 +52,7 @@ export async function ensureUserProfile(): Promise<UserProfile | null> {
     const assignedRole = isClerkAdmin ? USER_ROLES.ADMIN : USER_ROLES.USER;
 
     if (profile) {
-      // Profile exists — sync role if Clerk metadata changed
+      // 1. If Clerk says admin and DB doesn't, promote DB profile to admin
       if (isClerkAdmin && profile.role !== USER_ROLES.ADMIN) {
         const { data: updated } = await adminSupabase
           .from("profiles")
@@ -62,7 +62,9 @@ export async function ensureUserProfile(): Promise<UserProfile | null> {
           .single();
         if (updated) return updated as UserProfile;
       }
-      // Also sync back if somehow role is admin in DB but not in Clerk
+      // 2. If Clerk says NOT admin but DB still says admin, reconcile stale DB profile back to 'user'.
+      // Clerk publicMetadata.role is the authority for admin identity; stale database records must never
+      // retain admin privileges or reverse-promote Clerk metadata.
       if (!isClerkAdmin && profile.role === USER_ROLES.ADMIN) {
         const { data: updated } = await adminSupabase
           .from("profiles")
@@ -124,8 +126,37 @@ export async function getCurrentUserProfile(): Promise<UserProfile | null> {
 
 /**
  * Checks if the current requesting session has the admin role.
+ *
+ * Requires BOTH Clerk publicMetadata.role AND Supabase profiles.role to equal
+ * 'admin'. Either source alone is insufficient:
+ * - Clerk 'admin' + DB 'user' → false (e.g. promotion double-failure — DB not
+ *   yet reconciled; access is denied until ensureUserProfile() syncs the DB).
+ * - Clerk 'user' + DB 'admin' → false (e.g. revocation double-failure — stale
+ *   DB record cannot restore privileges that Clerk has revoked).
+ *
+ * IMPORTANT: Uses a direct read-only database query — NOT ensureUserProfile()
+ * or getCurrentUserProfile(). Those functions write to the DB (reconciling
+ * role mismatches), and calling them here would inadvertently complete a
+ * partially-failed role update as a side effect of an authorization check.
  */
 export async function isCurrentUserAdmin(): Promise<boolean> {
-  const profile = await getCurrentUserProfile();
-  return profile?.role === USER_ROLES.ADMIN;
+  // Clerk is the primary authority: fail-fast if Clerk does not confirm admin.
+  const clerkUser = await currentUser();
+  if (clerkUser?.publicMetadata?.role !== USER_ROLES.ADMIN) {
+    return false;
+  }
+
+  // Require the Supabase profile to independently confirm admin.
+  // Read-only: does not trigger role reconciliation or any DB write.
+  const { userId } = await auth();
+  if (!userId) return false;
+
+  const adminSupabase = createAdminSupabaseClient();
+  const { data } = await adminSupabase
+    .from("profiles")
+    .select("role")
+    .eq("clerk_id", userId)
+    .maybeSingle();
+
+  return data?.role === USER_ROLES.ADMIN;
 }

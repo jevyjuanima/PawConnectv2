@@ -53,6 +53,8 @@ export const dogSubmissionSchema = z.object({
     .min(2, "Location is required")
     .max(100, "Location must not exceed 100 characters"),
   video_url: z.string().url().optional().nullable().or(z.literal("")),
+  // video_storage_path is tracked externally (not as a registered form input).
+  // Server-side enforcement of the video requirement is handled in createDogAction.
   video_storage_path: z.string().optional().nullable().or(z.literal("")),
 });
 

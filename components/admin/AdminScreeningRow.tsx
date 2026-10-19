@@ -35,16 +35,20 @@ import { ScreeningStatusBadge } from "@/components/shared/StatusBadges";
 import { SCREENING_STATUSES, type ScreeningStatus } from "@/lib/constants/statuses";
 import { reviewScreeningAction } from "@/app/actions/admin";
 import { formatDate } from "@/lib/utils/format";
-import type { HouseholdScreeningWithDetails } from "@/types";
+import type { HouseholdScreeningWithDetails, SuitabilityScoreResult } from "@/types";
 import { cn } from "@/lib/utils";
+import { SuitabilityScoreCard } from "@/components/admin/SuitabilityScoreCard";
 
 interface AdminScreeningRowProps {
   screening: HouseholdScreeningWithDetails;
+  /** Authoritative suitability score pre-computed by the server component. */
+  scoreResult: SuitabilityScoreResult;
   onUpdated?: () => void;
 }
 
 export function AdminScreeningRow({
   screening: initialScreening,
+  scoreResult,
   onUpdated,
 }: AdminScreeningRowProps) {
   const [screening, setScreening] = React.useState(initialScreening);
@@ -127,6 +131,18 @@ export function AdminScreeningRow({
                 Screening for {dog?.name || "Dog"}
               </h3>
               <ScreeningStatusBadge status={screening.status} />
+              {/* Suitability tier badge */}
+              <span
+                className={cn(
+                  "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                  scoreResult.tier === "strong" && "bg-emerald-700 text-white",
+                  scoreResult.tier === "positive" && "bg-primary text-primary-foreground",
+                  scoreResult.tier === "mixed" && "bg-amber-600 text-white",
+                  scoreResult.tier === "limited" && "bg-orange-700 text-white"
+                )}
+              >
+                {scoreResult.totalScore}/100 · {scoreResult.tierLabel}
+              </span>
             </div>
             <p className="text-xs text-muted-foreground truncate">
               Applicant: <strong className="text-foreground">{applicant?.first_name || "User"} {applicant?.last_name || ""}</strong> ({applicant?.email})
@@ -241,6 +257,9 @@ export function AdminScreeningRow({
                 Applicant: {applicant?.first_name} {applicant?.last_name} ({applicant?.email})
               </DialogDescription>
             </DialogHeader>
+
+            {/* Suitability Score */}
+            <SuitabilityScoreCard result={scoreResult} />
 
             {/* Comprehensive Questionnaire Inspection */}
             <div className="space-y-4 text-xs sm:text-sm divide-y divide-border/60">

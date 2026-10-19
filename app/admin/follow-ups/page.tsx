@@ -58,7 +58,7 @@ export default async function AdminFollowupsPage(props: AdminFollowupsPageProps)
             <Heart className="h-4 w-4" />
             <span>Post-Adoption Welfare Program</span>
           </div>
-          <h1 className="font-serif text-3xl sm:text-4xl font-normal tracking-tight text-foreground">
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
             Monthly Post-Adoption Monitoring
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground max-w-2xl leading-relaxed">

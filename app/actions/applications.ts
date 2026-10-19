@@ -78,19 +78,53 @@ export async function createApplicationAction(
       return { success: false, error: `This dog is currently ${dog.status} and not open for applications` };
     }
 
-    // 2. Check for duplicate active application
+    // 2. Check for existing application
     const { data: existingApp } = await adminSupabase
       .from("adoption_applications")
       .select("id, status")
       .eq("dog_id", parsedApp.data.dog_id)
       .eq("applicant_id", userId)
-      .not("status", "in", `("${APPLICATION_STATUSES.CANCELLED}","${APPLICATION_STATUSES.REJECTED}")`)
       .maybeSingle();
 
     if (existingApp) {
+      if (
+        existingApp.status === APPLICATION_STATUSES.PENDING ||
+        existingApp.status === APPLICATION_STATUSES.UNDER_REVIEW
+      ) {
+        return {
+          success: false,
+          error: "You already have an active application in review for this dog.",
+        };
+      }
+      if (existingApp.status === APPLICATION_STATUSES.APPROVED) {
+        return {
+          success: false,
+          error: "You already have an approved application for this dog.",
+        };
+      }
+      if (existingApp.status === APPLICATION_STATUSES.COMPLETED) {
+        return {
+          success: false,
+          error: "You have already completed the adoption process for this dog.",
+        };
+      }
+      if (existingApp.status === APPLICATION_STATUSES.REJECTED) {
+        return {
+          success: false,
+          error:
+            "An application for this dog was previously submitted and reviewed. Only one application per dog listing is permitted.",
+        };
+      }
+      if (existingApp.status === APPLICATION_STATUSES.CANCELLED) {
+        return {
+          success: false,
+          error:
+            "An application for this dog was previously submitted and withdrawn. Please contact shelter staff if you wish to reopen your application.",
+        };
+      }
       return {
         success: false,
-        error: "You already have an active application in review for this dog",
+        error: "An application for this dog has already been submitted by your account.",
       };
     }
 
@@ -115,6 +149,16 @@ export async function createApplicationAction(
       .single();
 
     if (appError || !newApplication) {
+      if (
+        appError?.code === "23505" ||
+        appError?.message?.toLowerCase().includes("unique_applicant_dog_active") ||
+        appError?.message?.toLowerCase().includes("duplicate key")
+      ) {
+        return {
+          success: false,
+          error: "An application for this dog has already been submitted by your account.",
+        };
+      }
       return { success: false, error: appError?.message || "Failed to create adoption application" };
     }
 
