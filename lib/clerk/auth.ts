@@ -26,10 +26,9 @@ export interface UserProfile {
  *    is an internal trusted server operation (equivalent to a webhook handler).
  */
 export async function ensureUserProfile(): Promise<UserProfile | null> {
-  const { userId } = await auth();
-  if (!userId) return null;
-
   try {
+    const { userId } = await auth();
+    if (!userId) return null;
     // Always use admin client for profile sync — server-only, identity pre-verified by Clerk
     const adminSupabase = createAdminSupabaseClient();
 
